@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>과학 교구 찾기</title>
+<meta name="description" content="과학실 교구가 어느 수납함 몇 번째 칸에 있는지 찾아 주는 페이지">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<style id="app-style">:root{
+  --bg:#EAEFEC; --panel:#FFFFFF; --ink:#16232A; --muted:#56666B; --line:#C6D0CC;
+  --hi:#2140D0; --hi-soft:#DDE3FF; --hi-ink:#FFFFFF; --edge:#27343A; --warn:#B4231B; --waste:#9A3412; --waste-soft:#FFEDD5;
+  --earth:#DDD3EE; --motion:#CBE0F3; --reagent:#E1E4E3; --matter:#F7E7B2; --life:#D2E8C9; --common:#F8DDC3; --safety:#F3D6E2; --misc:#E1E4E3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101719; --panel:#1A2427; --ink:#E4ECEA; --muted:#98A8AB; --line:#34423F;
+    --hi:#7C94FF; --hi-soft:#262F66; --hi-ink:#0B1030; --edge:#BAC6C2; --warn:#FF8A80; --waste:#FDBA74; --waste-soft:#431A07;
+    --earth:#3A3352; --motion:#233B51; --reagent:#2F3739; --matter:#4A3F1E; --life:#27412A; --common:#4D3525; --safety:#4B2A3A; --misc:#2F3739;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101719; --panel:#1A2427; --ink:#E4ECEA; --muted:#98A8AB; --line:#34423F;
+  --hi:#7C94FF; --hi-soft:#262F66; --hi-ink:#0B1030; --edge:#BAC6C2; --warn:#FF8A80; --waste:#FDBA74; --waste-soft:#431A07;
+  --earth:#3A3352; --motion:#233B51; --reagent:#2F3739; --matter:#4A3F1E; --life:#27412A; --common:#4D3525; --safety:#4B2A3A; --misc:#2F3739;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.wrap{max-width:1200px;margin:0 auto;padding:20px 20px 48px}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.top h1{margin:0;font-size:1.75rem;font-weight:700;letter-spacing:-0.02em}
+.top p{margin:2px 0 0;color:var(--muted);font-size:.95rem}
+.ghost{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;color:var(--muted);font-size:.9rem}
+.ghost:hover{border-color:var(--ink);color:var(--ink)}
+.grid{display:grid;grid-template-columns:minmax(260px,320px) 1fr;gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+.side{position:sticky;top:12px;display:flex;flex-direction:column;gap:12px}
+@media (max-width:820px){.side{position:static}}
+.searchbox{position:relative}
+.searchbox input{width:100%;font-size:1.2rem;padding:14px 44px 14px 16px;border:2px solid var(--edge);border-radius:12px;background:var(--panel)}
+.searchbox input::placeholder{color:var(--muted)}
+.searchbox .clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:1.3rem;color:var(--muted);width:34px;height:34px;border-radius:50%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;font-size:.9rem}
+.chip:hover{border-color:var(--ink)}
+.hint{color:var(--muted);font-size:.88rem;margin:0}
+.results{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;max-height:62vh;overflow-y:auto}
+@media (max-width:820px){.results{max-height:none}}
+.res{display:grid;grid-template-columns:10px 1fr;gap:10px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 14px}
+.res:last-child{border-bottom:0}
+.res:hover{background:var(--hi-soft)}
+.res[aria-current="true"]{background:var(--hi-soft);box-shadow:inset 4px 0 0 var(--hi)}
+.res .sw{width:10px;border-radius:3px;border:1px solid var(--edge)}
+.res b{font-weight:600;display:block}
+.res small{display:block;color:var(--muted);font-size:.85rem}
+.res .where{color:var(--ink);font-size:.88rem}
+.res mark{background:none;color:var(--hi);font-weight:700}
+.count{font-size:.85rem;color:var(--muted);margin:0 2px}
+.empty{padding:16px;color:var(--muted)}
+.main{display:flex;flex-direction:column;gap:20px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.found{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:start}
+@media (max-width:620px){.found{grid-template-columns:1fr}.found .fig{order:2}}
+.found .roomname{margin:0;color:var(--muted);font-size:.95rem}
+.found h2{margin:0;font-size:2.4rem;line-height:1.15;letter-spacing:-0.02em;font-weight:700}
+.found .shelf{margin:4px 0 0;font-size:1.6rem;font-weight:600;color:var(--hi);line-height:1.25}
+.found .what{margin:18px 0 0;padding-top:14px;border-top:1px solid var(--line)}
+.found .what b{font-size:1.15rem}
+.found .what span{display:block;color:var(--muted)}
+.found .say{margin:14px 0 0;font-size:.95rem}
+.found .mates{margin:14px 0 0;font-size:.92rem;color:var(--muted)}
+.found .mates button{border:0;background:none;padding:0;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.sectitle{margin:0 0 12px;font-size:1.05rem;font-weight:600}
+/* cabinet figure */
+.cab{--c:var(--misc);display:inline-flex;flex-direction:column;border:4px solid var(--edge);border-radius:8px;background:var(--c);min-width:200px;position:relative}
+.cab.big{min-width:min(100%,520px);width:100%}
+.cab .name{text-align:center;font-weight:700;padding:4px 8px;border-bottom:4px solid var(--edge);background:var(--panel);font-size:.95rem}
+.cab .sec{display:flex;flex-direction:column}
+.cab .sec + .sec{border-top:8px solid var(--edge)}
+.cab .sec-label{font-size:.72rem;color:var(--muted);padding:3px 8px 0;background:transparent}
+.slot{position:relative;min-height:54px;padding:8px 10px 8px 34px;border-top:2px dashed color-mix(in srgb,var(--edge) 35%,transparent);display:flex;flex-wrap:wrap;gap:4px 6px;align-content:center}
+.cab .cols{display:flex;flex:1}
+.cab .col{flex:1;display:flex;flex-direction:column;min-width:0}
+.cab .col + .col{border-left:3px solid var(--edge)}
+.cab .col.none{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--edge) 12%,transparent) 6px 7px)}
+.cab .col .slot{flex:1}
+.cab .col .slot:first-child{border-top:0}
+.cab .sec-label span{opacity:.85}
+.cab.multi{min-width:260px}
+.sec .slot:first-of-type{border-top:0}
+.slot .no{position:absolute;left:8px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:50%;border:1.5px solid var(--edge);font-size:.72rem;display:grid;place-items:center;font-weight:600;background:var(--panel)}
+.slot.hit{background:var(--hi);color:var(--hi-ink)}
+.slot.hit .no{background:var(--hi-ink);color:var(--hi);border-color:var(--hi-ink)}
+.slot.hit::after{content:"여기";position:absolute;right:-64px;top:50%;transform:translateY(-50%);background:var(--hi);color:var(--hi-ink);font-weight:700;font-size:.9rem;padding:4px 10px;border-radius:6px;clip-path:polygon(10px 0,100% 0,100% 100%,10px 100%,0 50%);padding-left:16px}
+@media (prefers-reduced-motion:no-preference){.slot.hit{animation:blink 1.2s ease-out 2}}
+@keyframes blink{0%{box-shadow:inset 0 0 0 0 var(--hi-ink)}50%{box-shadow:inset 0 0 0 4px var(--hi-ink)}100%{box-shadow:inset 0 0 0 0 var(--hi-ink)}}
+.slot .it{font-size:.85rem;background:color-mix(in srgb,var(--panel) 75%,transparent);border:1px solid color-mix(in srgb,var(--edge) 30%,transparent);border-radius:5px;padding:1px 7px;color:var(--ink);text-align:left}
+button.it:hover{border-color:var(--edge)}
+.slot.hit .it{background:var(--hi-ink);color:var(--hi);border-color:transparent}
+.slot .it.me{font-weight:700}
+.slot .nothing{font-size:.8rem;color:var(--muted)}
+.slot.hit .nothing{color:var(--hi-ink)}
+.slot .add{font-size:.8rem;border:1px dashed var(--edge);background:none;border-radius:5px;padding:1px 8px}
+.cabwrap{padding-right:72px}
+.cabwrap.wide{padding-left:72px}
+.slot.hit.hit-left::after{right:auto;left:-64px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,0 100%);padding-left:10px;padding-right:16px}
+@media (max-width:620px){.cabwrap{padding-right:64px}.cabwrap.wide{padding-left:64px}}
+/* room map */
+.rooms{display:flex;flex-direction:column;gap:14px}
+.room{border:2px solid var(--edge);border-radius:10px;padding:10px 12px 12px;background:var(--panel)}
+.room h3{margin:0 0 8px;font-size:1rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.room .rows{overflow-x:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:2px}
+.room .row{display:flex;gap:6px;min-width:max-content}
+.tile{--c:var(--misc);background:var(--c);border:2px solid var(--edge);border-radius:6px;min-width:84px;padding:8px 6px 6px;text-align:center;font-size:.82rem;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px}
+.tile .mini{display:flex;flex-direction:column;gap:2px;width:44px}
+.tile .mini i{display:block;height:5px;border:1px solid color-mix(in srgb,var(--edge) 50%,transparent);background:color-mix(in srgb,var(--panel) 50%,transparent);border-radius:1px}
+.tile .mini hr{border:0;height:2px;background:var(--edge);margin:1px 0}
+.tile .mini i.on{background:var(--hi);border-color:var(--hi)}
+.tile:hover{outline:2px solid var(--ink);outline-offset:1px}
+.tile.on{outline:4px solid var(--hi);outline-offset:2px}
+.tile.dim{opacity:.45}
+.gap{width:28px}
+.noroom{color:var(--muted);font-size:.88rem;margin:0}
+.g-earth{--c:var(--earth)}.g-motion{--c:var(--motion)}.g-reagent{--c:var(--reagent)}.g-matter{--c:var(--matter)}.g-life{--c:var(--life)}.g-common{--c:var(--common)}.g-safety{--c:var(--safety)}.g-misc{--c:var(--misc)}
+.cabhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.cabhead h2{margin:0;font-size:1.6rem}
+.cabhead p{margin:0;color:var(--muted)}
+.back{border:0;background:none;padding:0;color:var(--muted);font-size:.9rem;margin-bottom:8px}
+.back:hover{color:var(--ink)}
+/* edit */
+.editbar{display:none;position:sticky;top:0;z-index:5;background:var(--ink);color:var(--bg);padding:10px 20px;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+body.editing .editbar{display:flex}
+.editbar p{margin:0;font-size:.92rem}
+.btn{border:0;border-radius:8px;padding:8px 14px;font-weight:600;background:var(--hi);color:var(--hi-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.plain{background:transparent;color:inherit;border:1px solid currentColor}
+.btn.danger{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:.92rem;max-width:90vw;z-index:20}
+dialog{border:2px solid var(--edge);border-radius:14px;background:var(--panel);color:var(--ink);padding:20px;width:min(440px,92vw)}
+dialog::backdrop{background:rgba(10,15,18,.55)}
+dialog h3{margin:0 0 14px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;font-size:.9rem}
+.field input,.field select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.field small{color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions{display:flex;justify-content:space-between;gap:8px;margin-top:6px;flex-wrap:wrap}
+.actions div{display:flex;gap:8px}
+.err{color:var(--warn);font-size:.88rem;min-height:1.2em;margin:0 0 6px}
+.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+
+.searchbox input::-webkit-search-cancel-button{display:none}
+.room .rows{position:relative}
+
+/* floor plan */
+.planscroll{overflow-x:auto;margin:0 -4px;padding:4px}
+.plan{position:relative;min-width:760px;width:100%;background:var(--panel);container-type:inline-size}
+.plan .wall{position:absolute;background:var(--edge);display:block}
+.plan .rlabel{position:absolute;font-weight:700;font-size:max(11px,1.7cqw);white-space:nowrap;transform:translateY(-10%)}
+.ptile{position:absolute;padding:0;border:2px solid var(--edge);background:var(--c);border-radius:2px;display:block;font-size:max(9.5px,1.22cqw)}
+.ptile .shelves{position:absolute;inset:0;display:flex;flex-direction:column}
+.ptile .shelves b{flex:1;display:flex;flex-direction:row;min-height:0}
+.ptile .shelves u{flex:1;display:flex;flex-direction:column;min-width:0;text-decoration:none}
+.ptile .shelves u + u{border-left:1px solid color-mix(in srgb,var(--edge) 60%,transparent)}
+.ptile .shelves b + b{border-top:3px solid var(--edge)}
+.ptile .shelves i{flex:1;display:block;min-height:0;border-top:1px dashed color-mix(in srgb,var(--edge) 35%,transparent)}
+.ptile .shelves u i:first-child{border-top:0}
+.ptile .shelves i.on{background:var(--hi)}
+.ptile .plabel{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;font-weight:600;color:var(--ink);line-height:1.2;letter-spacing:-0.04em}
+.ptile .lab-bottom{top:calc(100% + 4px)}
+.ptile.on .lab-bottom{top:calc(100% + 8px)}
+.ptile.on .lab-top{bottom:calc(100% + 8px)}
+.ptile .lab-top{bottom:calc(100% + 3px)}
+.ptile .lab-right{left:calc(100% + 10px);transform:translateY(-50%);top:50%}
+.ptile .lab-inside{top:50%;transform:translate(-50%,-50%);background:color-mix(in srgb,var(--panel) 80%,transparent);padding:0 4px;border-radius:3px}
+.ptile:hover{outline:2px solid var(--ink);outline-offset:1px;z-index:2}
+.ptile.on{outline:3px solid var(--hi);outline-offset:3px;z-index:3}
+.ptile.on .plabel{color:var(--hi);font-weight:700}
+.ptile.dim{border-color:color-mix(in srgb,var(--edge) 45%,transparent)}
+.ptile.dim .shelves{opacity:.4}
+
+/* 폐시약 표시 */
+.tag-waste{display:inline-block;margin-left:6px;padding:0 7px;border-radius:4px;border:1px solid var(--waste);color:var(--waste);background:var(--waste-soft);font-size:.74rem;font-weight:700;line-height:1.55;vertical-align:2px;white-space:nowrap}
+.slot .it.waste{border:1px dashed var(--waste);background:var(--waste-soft);color:var(--waste)}
+.slot .it.waste::before{content:"폐 ";font-weight:700}
+.slot.hit .it.waste{background:var(--hi-ink);color:var(--waste)}
+.wastebar{margin:12px 0 0;padding:8px 12px;border-left:4px solid var(--waste);background:var(--waste-soft);color:var(--ink);font-size:.92rem;border-radius:0 6px 6px 0}
+.wastecard{border-color:var(--waste)}
+.wastecard .sectitle{color:var(--waste)}
+.wastegroup{margin:0 0 6px;display:flex;flex-direction:column;gap:6px}
+.wastegroup > button{align-self:flex-start;border:0;background:none;padding:0;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.wastegroup > span{display:flex;flex-wrap:wrap;gap:4px 6px}
+.wastegroup .it{font-size:.85rem;border:1px dashed var(--waste);background:var(--waste-soft);color:var(--waste);border-radius:5px;padding:1px 7px}
+.wastegroup .it:hover{border-style:solid}
+/* 연결 상태 띠 */
+.status{margin:0 0 14px;padding:8px 12px;border-radius:8px;background:var(--hi-soft);font-size:.9rem}
+.status.warn{background:var(--waste-soft);color:var(--ink);border-left:4px solid var(--waste)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.found .what b .tag-waste{display:inline-block;color:var(--waste)}
+</style>
+</head>
+<body>
+<div class="editbar" role="region" aria-label="수정 모드"><p>수정 모드입니다. ‘변경사항 저장’을 눌러야 구글 시트에 반영돼요.</p><div style="display:flex;gap:8px"><button class="btn plain" id="cancelBtn">수정 마치기</button><button class="btn" id="saveBtn" disabled>저장할 변경 없음</button></div></div>
+<div class="wrap">
+  <header class="top">
+    <div><h1>과학 교구 어디 있지?</h1><p>교구 이름을 입력하면 어느 수납함, 몇 번째 칸에 있는지 알려 줘요.</p></div>
+    <div class="toolbar"><button class="ghost" id="xlsxBtn">엑셀로 내려받기</button><button class="ghost" id="editToggle">교구 정보 수정</button></div>
+  </header>
+  <p class="status" id="status" role="status" hidden></p>
+  <div class="grid">
+    <aside class="side">
+      <div class="searchbox"><label for="q" class="hint" style="display:block;margin-bottom:6px">교구 찾기</label><input id="q" type="text" enterkeyhint="search" autocomplete="off" placeholder="예: 비커, 전류계, ㄴㄱㅅㄹㄷ"><button class="clear" id="clearQ" aria-label="검색어 지우기" style="top:calc(50% + 14px)">×</button></div>
+      <p class="hint">초성만 입력해도 찾을 수 있어요. 엔터를 누르면 첫 번째 결과로 이동해요.</p>
+      <div class="chips" id="quick" aria-label="자주 찾는 교구"></div>
+      <p class="count" id="count" aria-live="polite"></p>
+      <div class="results" id="results" hidden></div>
+    </aside>
+    <main class="main" id="main" aria-live="polite"></main>
+  </div>
+  <footer class="foot"><span id="updated"></span><span>칸 번호는 각 층의 위에서부터 1, 2, 3번째입니다.</span></footer>
+</div>
+<script type="application/json" id="inv-data">{"rooms": [{"id": "prep", "name": "준비실", "y0": 0, "y1": 538.5, "lx": 6, "ly": 4}, {"id": "proj", "name": "프로젝트실", "y0": 538.5, "y1": 958.5, "lx": 6, "ly": 553.0}, {"id": "lab", "name": "과학실", "y0": 958.5, "y1": 1578.0, "lx": 6, "ly": 973.0}], "plan": {"x0": 0, "y0": 0, "x1": 1405.3, "y1": 1578.0, "walls": [[0, 534.5, 115.6, 8], [218.3, 534.5, 1161.4, 8], [0, 954.5, 115.6, 8], [218.3, 954.5, 1161.4, 8], [0, 1563.5, 1379.7, 8], [1388.5, 0, 8, 1578.0]]}, "cabinets": [{"id": "c_지구과학1", "name": "지구과학1", "room": "prep", "group": "earth", "upper": [3], "lower": [3], "x": 456.3, "y": 0, "w": 101.8, "h": 126, "label": "bottom"}, {"id": "c_지구과학2", "name": "지구과학2", "room": "prep", "group": "earth", "upper": [3], "lower": [3], "x": 558.1, "y": 0, "w": 102.7, "h": 126, "label": "bottom"}, {"id": "c_지구과학3", "name": "지구과학3", "room": "prep", "group": "earth", "upper": [3], "lower": [3], "x": 660.8, "y": 0, "w": 102.7, "h": 126, "label": "bottom"}, {"id": "c_운동과에너지1", "name": "운동과에너지1", "room": "prep", "group": "motion", "upper": [3], "lower": [3], "x": 763.5, "y": 0, "w": 102.7, "h": 126, "label": "bottom"}, {"id": "c_운동과에너지2", "name": "운동과에너지2", "room": "prep", "group": "motion", "upper": [3], "lower": [3], "x": 866.2, "y": 0, "w": 102.7, "h": 126, "label": "bottom"}, {"id": "c_운동과에너지3", "name": "운동과에너지3", "room": "prep", "group": "motion", "upper": [3], "lower": [3], "x": 968.9, "y": 0, "w": 102.7, "h": 126, "label": "bottom"}, {"id": "c_시약장", "name": "시약장", "room": "prep", "group": "reagent", "upper": [3], "lower": [2], "x": 1174.3, "y": 0, "w": 205.4, "h": 126, "label": "bottom"}, {"id": "c_공통9", "name": "공통9", "room": "prep", "group": "common", "upper": [2, 3], "lower": [], "x": 0, "y": 198.0, "w": 218.3, "h": 63.0, "label": "right"}, {"id": "c_공통8", "name": "공통8", "room": "prep", "group": "common", "upper": [2, 3], "lower": [], "x": 0, "y": 261.0, "w": 218.3, "h": 63.0, "label": "right"}, {"id": "c_기타1", "name": "기타1", "room": "prep", "group": "misc", "upper": [3, 3], "lower": [], "x": 340.7, "y": 261.0, "w": 217.3, "h": 63.0, "label": "bottom"}, {"id": "c_기타2", "name": "기타2", "room": "prep", "group": "misc", "upper": [3], "lower": [], "x": 558.1, "y": 261.0, "w": 102.7, "h": 63.0, "label": "bottom"}, {"id": "c_기타3", "name": "기타3", "room": "prep", "group": "misc", "upper": [3, 3], "lower": [], "x": 660.8, "y": 261.0, "w": 205.4, "h": 63.0, "label": "bottom"}, {"id": "c_기타4", "name": "기타4", "room": "prep", "group": "misc", "upper": [3], "lower": [], "x": 866.2, "y": 261.0, "w": 102.7, "h": 63.0, "label": "bottom"}, {"id": "c_기타5", "name": "기타5", "room": "prep", "group": "misc", "upper": [3, 3], "lower": [], "x": 968.9, "y": 261.0, "w": 205.4, "h": 63.0, "label": "bottom"}, {"id": "c_기타6", "name": "기타6", "room": "prep", "group": "misc", "upper": [3], "lower": [], "x": 1174.3, "y": 261.0, "w": 102.7, "h": 63.0, "label": "bottom"}, {"id": "c_기타7", "name": "기타7", "room": "prep", "group": "misc", "upper": [3], "lower": [], "x": 340.7, "y": 198.0, "w": 115.6, "h": 63.0, "label": "top"}, {"id": "c_기타8", "name": "기타8", "room": "prep", "group": "misc", "upper": [3, 3], "lower": [], "x": 456.3, "y": 198.0, "w": 204.5, "h": 63.0, "label": "top"}, {"id": "c_기타9", "name": "기타9", "room": "prep", "group": "misc", "upper": [3], "lower": [], "x": 660.8, "y": 198.0, "w": 102.7, "h": 63.0, "label": "top"}, {"id": "c_기타10", "name": "기타10", "room": "prep", "group": "misc", "upper": [3, 3], "lower": [], "x": 763.5, "y": 198.0, "w": 205.4, "h": 63.0, "label": "top"}, {"id": "c_기타11", "name": "기타11", "room": "prep", "group": "misc", "upper": [3], "lower": [], "x": 968.9, "y": 198.0, "w": 102.7, "h": 63.0, "label": "top"}, {"id": "c_기타12", "name": "기타12", "room": "prep", "group": "misc", "upper": [3, 3], "lower": [], "x": 1071.6, "y": 198.0, "w": 205.4, "h": 63.0, "label": "top"}, {"id": "c_물질3", "name": "물질3", "room": "prep", "group": "matter", "upper": [3], "lower": [3], "x": 456.3, "y": 381.0, "w": 101.8, "h": 126.0, "label": "top"}, {"id": "c_물질2", "name": "물질2", "room": "prep", "group": "matter", "upper": [3], "lower": [3], "x": 558.1, "y": 381.0, "w": 102.7, "h": 126.0, "label": "top"}, {"id": "c_물질1", "name": "물질1", "room": "prep", "group": "matter", "upper": [3], "lower": [3], "x": 660.8, "y": 381.0, "w": 102.7, "h": 126.0, "label": "top"}, {"id": "c_생명과학3", "name": "생명과학3", "room": "prep", "group": "life", "upper": [3], "lower": [3], "x": 763.5, "y": 381.0, "w": 102.7, "h": 126.0, "label": "top"}, {"id": "c_생명과학2", "name": "생명과학2", "room": "prep", "group": "life", "upper": [3], "lower": [3], "x": 866.2, "y": 381.0, "w": 102.7, "h": 126.0, "label": "top"}, {"id": "c_생명과학1", "name": "생명과학1", "room": "prep", "group": "life", "upper": [3], "lower": [2], "x": 968.9, "y": 381.0, "w": 102.7, "h": 126.0, "label": "top"}, {"id": "c_공통1", "name": "공통1", "room": "proj", "group": "common", "upper": [3], "lower": [3], "x": 456.3, "y": 549.0, "w": 101.8, "h": 126.0, "label": "bottom"}, {"id": "c_공통2", "name": "공통2", "room": "proj", "group": "common", "upper": [3], "lower": [3], "x": 558.1, "y": 549.0, "w": 102.7, "h": 126.0, "label": "bottom"}, {"id": "c_공통3", "name": "공통3", "room": "proj", "group": "common", "upper": [3], "lower": [3], "x": 660.8, "y": 549.0, "w": 102.7, "h": 126.0, "label": "bottom"}, {"id": "c_공통4", "name": "공통4", "room": "proj", "group": "common", "upper": [3], "lower": [3], "x": 763.5, "y": 549.0, "w": 102.7, "h": 126.0, "label": "bottom"}, {"id": "c_공통5", "name": "공통5", "room": "proj", "group": "common", "upper": [3], "lower": [3], "x": 866.2, "y": 549.0, "w": 102.7, "h": 126.0, "label": "bottom"}, {"id": "c_공통6", "name": "공통6", "room": "proj", "group": "common", "upper": [3], "lower": [3], "x": 968.9, "y": 549.0, "w": 102.7, "h": 126.0, "label": "bottom"}, {"id": "c_공통7", "name": "공통7", "room": "proj", "group": "common", "upper": [3], "lower": [3], "x": 1071.6, "y": 549.0, "w": 102.7, "h": 126.0, "label": "bottom"}, {"id": "c_학용품3", "name": "학용품3", "room": "proj", "group": "misc", "upper": [3], "lower": [], "x": 0, "y": 696.0, "w": 115.6, "h": 63.0, "label": "right"}, {"id": "c_학용품2", "name": "학용품2", "room": "proj", "group": "misc", "upper": [3], "lower": [], "x": 0, "y": 759.0, "w": 115.6, "h": 63.0, "label": "right"}, {"id": "c_학용품1", "name": "학용품1", "room": "proj", "group": "misc", "upper": [3], "lower": [], "x": 0, "y": 822.0, "w": 115.6, "h": 63.0, "label": "right"}, {"id": "c_안전", "name": "안전", "room": "lab", "group": "safety", "upper": [3, 3], "lower": [3, 3], "x": 1174.3, "y": 1431.0, "w": 205.4, "h": 126.0, "label": "top"}], "items": [{"id": "i1", "name": "조흔색실험 광물표본", "detail": "12개", "alias": "조흔색", "cab": "c_지구과학1", "sec": "U", "slot": 2, "col": 1}, {"id": "i2", "name": "조암광물표본", "detail": "1개", "alias": "광물", "cab": "c_지구과학1", "sec": "U", "slot": 2, "col": 1}, {"id": "i3", "name": "변성암표본", "detail": "1개", "alias": "암석", "cab": "c_지구과학1", "sec": "U", "slot": 3, "col": 1}, {"id": "i4", "name": "퇴적암표본", "detail": "1개", "alias": "암석", "cab": "c_지구과학1", "sec": "U", "slot": 3, "col": 1}, {"id": "i5", "name": "화성암표본", "detail": "1개", "alias": "암석", "cab": "c_지구과학1", "sec": "U", "slot": 3, "col": 1}, {"id": "i6", "name": "구름발생장치", "detail": "14개", "alias": "", "cab": "c_지구과학1", "sec": "L", "slot": 1, "col": 1}, {"id": "i7", "name": "지구본", "detail": "1개", "alias": "지구의", "cab": "c_지구과학1", "sec": "L", "slot": 2, "col": 1}, {"id": "i8", "name": "별자리판", "detail": "10개", "alias": "성도 별자리", "cab": "c_지구과학1", "sec": "L", "slot": 2, "col": 1}, {"id": "i9", "name": "별자리 무드등 키트", "detail": "7개", "alias": "", "cab": "c_지구과학1", "sec": "L", "slot": 3, "col": 1}, {"id": "i10", "name": "태양필터", "detail": "1개", "alias": "", "cab": "c_지구과학2", "sec": "U", "slot": 3, "col": 1}, {"id": "i11", "name": "쌍안경", "detail": "1개", "alias": "", "cab": "c_지구과학2", "sec": "U", "slot": 3, "col": 1}, {"id": "i12", "name": "기압계", "detail": "1개", "alias": "", "cab": "c_지구과학2", "sec": "U", "slot": 3, "col": 1}, {"id": "i13", "name": "용수철 세트", "detail": "10개", "alias": "스프링", "cab": "c_운동과에너지2", "sec": "U", "slot": 2, "col": 1}, {"id": "i14", "name": "용수철 저울(디지털)", "detail": "7개", "alias": "스프링 저울 힘", "cab": "c_운동과에너지2", "sec": "U", "slot": 2, "col": 1}, {"id": "i15", "name": "금속추", "detail": "", "alias": "추", "cab": "c_운동과에너지2", "sec": "U", "slot": 2, "col": 1}, {"id": "i16", "name": "거울", "detail": "볼록·오목·평면", "alias": "볼록거울 오목거울 평면거울", "cab": "c_운동과에너지2", "sec": "U", "slot": 3, "col": 1}, {"id": "i17", "name": "렌즈", "detail": "볼록·오목", "alias": "볼록렌즈 오목렌즈", "cab": "c_운동과에너지2", "sec": "U", "slot": 3, "col": 1}, {"id": "i18", "name": "빛조절스탠드", "detail": "2개", "alias": "스텐드", "cab": "c_운동과에너지2", "sec": "U", "slot": 3, "col": 1}, {"id": "i19", "name": "손전등", "detail": "8개", "alias": "후레쉬 플래시", "cab": "c_운동과에너지2", "sec": "U", "slot": 3, "col": 1}, {"id": "i20", "name": "빛 레이저", "detail": "1개", "alias": "레이저 포인터", "cab": "c_운동과에너지2", "sec": "U", "slot": 3, "col": 1}, {"id": "i21", "name": "소리굽쇠", "detail": "7개", "alias": "", "cab": "c_운동과에너지2", "sec": "L", "slot": 1, "col": 1}, {"id": "i22", "name": "말굽자석", "detail": "15개", "alias": "자석", "cab": "c_운동과에너지2", "sec": "L", "slot": 1, "col": 1}, {"id": "i23", "name": "마찰력실험 세트", "detail": "1개", "alias": "", "cab": "c_운동과에너지2", "sec": "L", "slot": 2, "col": 1}, {"id": "i24", "name": "레고블록 키트", "detail": "8개", "alias": "", "cab": "c_운동과에너지2", "sec": "L", "slot": 3, "col": 1}, {"id": "i25", "name": "LED 직렬·병렬 실험키트", "detail": "20개", "alias": "엘이디 회로", "cab": "c_운동과에너지2", "sec": "L", "slot": 3, "col": 1}, {"id": "i26", "name": "태양열보트 키트", "detail": "3개", "alias": "", "cab": "c_운동과에너지2", "sec": "L", "slot": 3, "col": 1}, {"id": "i27", "name": "검전기", "detail": "9개", "alias": "", "cab": "c_운동과에너지3", "sec": "U", "slot": 1, "col": 1}, {"id": "i28", "name": "정전기 발생 세트", "detail": "", "alias": "", "cab": "c_운동과에너지3", "sec": "U", "slot": 1, "col": 1}, {"id": "i29", "name": "금속끈", "detail": "", "alias": "", "cab": "c_운동과에너지3", "sec": "U", "slot": 1, "col": 1}, {"id": "i30", "name": "전류계", "detail": "30개", "alias": "암미터", "cab": "c_운동과에너지3", "sec": "U", "slot": 2, "col": 1}, {"id": "i31", "name": "전압계", "detail": "31개", "alias": "볼트미터", "cab": "c_운동과에너지3", "sec": "U", "slot": 2, "col": 1}, {"id": "i32", "name": "직류전원장치", "detail": "2개", "alias": "전원공급장치 파워서플라이", "cab": "c_운동과에너지3", "sec": "U", "slot": 3, "col": 1}, {"id": "i33", "name": "전기회로시험기", "detail": "1개", "alias": "멀티미터 테스터", "cab": "c_운동과에너지3", "sec": "U", "slot": 3, "col": 1}, {"id": "i34", "name": "건전지", "detail": "6V 6개", "alias": "배터리 전지", "cab": "c_운동과에너지3", "sec": "U", "slot": 3, "col": 1}, {"id": "i35", "name": "연결용 도선", "detail": "", "alias": "집게전선 전선", "cab": "c_운동과에너지3", "sec": "L", "slot": 1, "col": 1}, {"id": "i36", "name": "간이스위치", "detail": "11개", "alias": "스위치", "cab": "c_운동과에너지3", "sec": "L", "slot": 1, "col": 1}, {"id": "i37", "name": "꼬마전구", "detail": "", "alias": "전구", "cab": "c_운동과에너지3", "sec": "L", "slot": 1, "col": 1}, {"id": "i38", "name": "니크롬선 3종", "detail": "100·200·300 각 7개", "alias": "저항선", "cab": "c_운동과에너지3", "sec": "L", "slot": 1, "col": 1}, {"id": "i39", "name": "니크롬선 5옴·10옴", "detail": "각 7개", "alias": "저항선", "cab": "c_운동과에너지3", "sec": "L", "slot": 1, "col": 1}, {"id": "i40", "name": "저항판", "detail": "10개", "alias": "저항", "cab": "c_운동과에너지3", "sec": "L", "slot": 1, "col": 1}, {"id": "i41", "name": "옴의 법칙 장치", "detail": "1개", "alias": "", "cab": "c_운동과에너지3", "sec": "L", "slot": 1, "col": 1}, {"id": "i42", "name": "나침반", "detail": "2세트(10개입)", "alias": "나침판 나침 나침반", "cab": "c_운동과에너지3", "sec": "L", "slot": 1, "col": 1}, {"id": "i43", "name": "자기장 실험 세트", "detail": "7개", "alias": "자석", "cab": "c_운동과에너지3", "sec": "L", "slot": 2, "col": 1}, {"id": "i44", "name": "자력선 관찰실험기", "detail": "2개", "alias": "자석", "cab": "c_운동과에너지3", "sec": "L", "slot": 2, "col": 1}, {"id": "i45", "name": "그네형 전자기력실험기", "detail": "6개", "alias": "", "cab": "c_운동과에너지3", "sec": "L", "slot": 3, "col": 1}, {"id": "i46", "name": "전동기 실험기", "detail": "2개", "alias": "모터", "cab": "c_운동과에너지3", "sec": "L", "slot": 3, "col": 1}, {"id": "i47", "name": "솔레노이드", "detail": "8개", "alias": "코일", "cab": "c_운동과에너지3", "sec": "L", "slot": 3, "col": 1}, {"id": "i48", "name": "살리실산 99%", "detail": "500g 1개", "alias": "", "cab": "c_시약장", "sec": "U", "slot": 2, "col": 1}, {"id": "i49", "name": "멸균증류수", "detail": "1L 5개", "alias": "정제수 증류수", "cab": "c_시약장", "sec": "U", "slot": 3, "col": 1}, {"id": "i50", "name": "실리실산", "detail": "2개", "alias": "살리실산", "cab": "c_시약장", "sec": "U", "slot": 3, "col": 1}, {"id": "i51", "name": "아가파우더", "detail": "1개", "alias": "한천 우뭇가사리", "cab": "c_시약장", "sec": "U", "slot": 3, "col": 1}, {"id": "i52", "name": "묽은 염산(0.1mol)", "detail": "500ml 3개", "alias": "염산", "cab": "c_시약장", "sec": "L", "slot": 1, "col": 1}, {"id": "i53", "name": "과망간산칼륨 1000ppm", "detail": "1kg 1개", "alias": "과망가니즈산칼륨", "cab": "c_시약장", "sec": "L", "slot": 1, "col": 1}, {"id": "i54", "name": "황산 95%", "detail": "1kg 1개", "alias": "", "cab": "c_시약장", "sec": "L", "slot": 1, "col": 1}, {"id": "i55", "name": "염산 35~37%", "detail": "1kg 1개", "alias": "진한 염산", "cab": "c_시약장", "sec": "L", "slot": 1, "col": 1}, {"id": "i180", "name": "아세톤", "detail": "1개", "alias": "", "cab": "c_시약장", "sec": "L", "col": 1, "slot": 1}, {"id": "i157", "name": "질산나트륨 용액", "detail": "500cc 2개", "alias": "질산소다", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i158", "name": "염화나트륨 용액", "detail": "500cc 2개", "alias": "소금물", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i159", "name": "탄산나트륨", "detail": "500cc 1개", "alias": "탄산소다", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i160", "name": "묽은 염산(10%)", "detail": "500cc 3개", "alias": "염산", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i161", "name": "묽은 황산(15%)", "detail": "500cc 2개", "alias": "황산", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i162", "name": "아세톤", "detail": "500cc 4개", "alias": "", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i163", "name": "질산은 용액(0.1M)", "detail": "500cc 1개", "alias": "질산은", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i164", "name": "아세트카민 용액", "detail": "500cc 1개", "alias": "아세트카민", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i165", "name": "베네딕트 용액", "detail": "500cc 2개", "alias": "베네딕트", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i166", "name": "메틸오렌지", "detail": "500cc 2개", "alias": "메칠오렌지 지시약", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i167", "name": "수산화칼슘(95%) 분말", "detail": "500g 1개", "alias": "소석회", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i168", "name": "염화마그네슘 분말", "detail": "500g 1개", "alias": "", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i169", "name": "질산칼슘 분말", "detail": "500g 1개", "alias": "", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i170", "name": "염화암모늄 분말", "detail": "500g 1개", "alias": "", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i171", "name": "질산납 분말", "detail": "500g 1개", "alias": "", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i172", "name": "질산칼륨 분말", "detail": "500g 2개", "alias": "초석", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i173", "name": "끓임쪽", "detail": "2개", "alias": "비등석", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i174", "name": "황산구리 분말", "detail": "500g 1개", "alias": "황산동", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i175", "name": "염화나트륨 분말", "detail": "500g 1개", "alias": "소금", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i176", "name": "탄산수소나트륨", "detail": "500g 2개", "alias": "중탄산나트륨 베이킹소다", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i177", "name": "철가루", "detail": "500g 1개", "alias": "철분말", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i178", "name": "백반 분말", "detail": "500g 6개", "alias": "명반 황산알루미늄칼륨", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i179", "name": "아이오딘화칼륨", "detail": "100g 1개", "alias": "요오드화칼륨", "cab": "c_시약장", "sec": "L", "slot": 2, "disposal": "2027", "col": 1}, {"id": "i57", "name": "멀티현미경", "detail": "", "alias": "현미경", "cab": "c_공통9", "sec": "U", "slot": 2, "col": 1}, {"id": "i58", "name": "광학 현미경", "detail": "", "alias": "현미경", "cab": "c_공통8", "sec": "U", "slot": 2, "col": 1}, {"id": "i59", "name": "기체분자운동 장치", "detail": "2개", "alias": "", "cab": "c_물질2", "sec": "U", "slot": 2, "col": 1}, {"id": "i60", "name": "열량계", "detail": "6개", "alias": "", "cab": "c_물질2", "sec": "U", "slot": 2, "col": 1}, {"id": "i61", "name": "선스펙트럼 장치", "detail": "1개", "alias": "스펙트럼", "cab": "c_물질2", "sec": "U", "slot": 3, "col": 1}, {"id": "i62", "name": "분광기", "detail": "", "alias": "스펙트럼", "cab": "c_물질2", "sec": "U", "slot": 3, "col": 1}, {"id": "i63", "name": "크로마토그래피", "detail": "6상자", "alias": "거름종이", "cab": "c_물질2", "sec": "L", "slot": 1, "col": 1}, {"id": "i64", "name": "pH 측정키트", "detail": "3개", "alias": "산성 염기성 피에이치", "cab": "c_물질2", "sec": "L", "slot": 1, "col": 1}, {"id": "i65", "name": "산소용존량 측정키트", "detail": "2개", "alias": "용존산소 DO", "cab": "c_물질2", "sec": "L", "slot": 1, "col": 1}, {"id": "i66", "name": "오줌싸개 인형", "detail": "19개", "alias": "", "cab": "c_물질2", "sec": "L", "slot": 2, "col": 1}, {"id": "i67", "name": "금속큐브", "detail": "", "alias": "밀도", "cab": "c_물질2", "sec": "L", "slot": 2, "col": 1}, {"id": "i68", "name": "숯 손난로 키트", "detail": "10개", "alias": "핫팩", "cab": "c_물질2", "sec": "L", "slot": 3, "col": 1}, {"id": "i69", "name": "간이 에어컨 키트", "detail": "10개", "alias": "", "cab": "c_물질2", "sec": "L", "slot": 3, "col": 1}, {"id": "i70", "name": "분별증류장치", "detail": "2개", "alias": "증류", "cab": "c_물질1", "sec": "U", "slot": 1, "col": 1}, {"id": "i71", "name": "증류냉각기", "detail": "8개", "alias": "리비히 냉각기 증류", "cab": "c_물질1", "sec": "U", "slot": 1, "col": 1}, {"id": "i72", "name": "시약병", "detail": "", "alias": "", "cab": "c_물질1", "sec": "U", "slot": 2, "col": 1}, {"id": "i73", "name": "전도도측정기", "detail": "7개", "alias": "전기전도도", "cab": "c_물질1", "sec": "U", "slot": 3, "col": 1}, {"id": "i74", "name": "압력계 달린 주사기", "detail": "7개", "alias": "보일 법칙", "cab": "c_물질1", "sec": "U", "slot": 3, "col": 1}, {"id": "i75", "name": "집기병", "detail": "500ml 28개", "alias": "", "cab": "c_물질1", "sec": "L", "slot": 2, "col": 1}, {"id": "i76", "name": "집기병", "detail": "250ml 13개", "alias": "", "cab": "c_물질1", "sec": "L", "slot": 3, "col": 1}, {"id": "i77", "name": "마이크로피펫", "detail": "", "alias": "", "cab": "c_생명과학2", "sec": "U", "slot": 3, "col": 1}, {"id": "i78", "name": "마이크로피펫 팁", "detail": "", "alias": "", "cab": "c_생명과학2", "sec": "U", "slot": 3, "col": 1}, {"id": "i79", "name": "파라필름", "detail": "", "alias": "", "cab": "c_생명과학2", "sec": "U", "slot": 3, "col": 1}, {"id": "i80", "name": "밥솥", "detail": "1개", "alias": "", "cab": "c_생명과학2", "sec": "U", "slot": 3, "col": 1}, {"id": "i81", "name": "종이냄비", "detail": "8개", "alias": "", "cab": "c_생명과학2", "sec": "L", "slot": 3, "col": 1}, {"id": "i82", "name": "DNA 추출키트", "detail": "7개", "alias": "디엔에이", "cab": "c_생명과학2", "sec": "L", "slot": 3, "col": 1}, {"id": "i83", "name": "루페", "detail": "12개", "alias": "돋보기", "cab": "c_생명과학1", "sec": "U", "slot": 2, "col": 1}, {"id": "i84", "name": "고무망치", "detail": "10개", "alias": "", "cab": "c_생명과학1", "sec": "U", "slot": 2, "col": 1}, {"id": "i85", "name": "폐 모형", "detail": "9개", "alias": "호흡", "cab": "c_생명과학1", "sec": "U", "slot": 2, "col": 1}, {"id": "i86", "name": "슬라이드글라스", "detail": "2,450개", "alias": "받침유리 프레파라트", "cab": "c_생명과학1", "sec": "U", "slot": 3, "col": 1}, {"id": "i87", "name": "커버글라스", "detail": "600개", "alias": "덮개유리", "cab": "c_생명과학1", "sec": "U", "slot": 3, "col": 1}, {"id": "i88", "name": "해부침", "detail": "직선형 14개·곡선형 14개", "alias": "바늘", "cab": "c_생명과학1", "sec": "U", "slot": 3, "col": 1}, {"id": "i89", "name": "해부가위", "detail": "", "alias": "", "cab": "c_생명과학1", "sec": "L", "slot": 1, "col": 1}, {"id": "i90", "name": "전정가위", "detail": "", "alias": "", "cab": "c_생명과학1", "sec": "L", "slot": 1, "col": 1}, {"id": "i91", "name": "모종삽", "detail": "", "alias": "", "cab": "c_생명과학1", "sec": "L", "slot": 1, "col": 1}, {"id": "i92", "name": "해부그릇", "detail": "", "alias": "", "cab": "c_생명과학1", "sec": "L", "slot": 2, "col": 1}, {"id": "i93", "name": "낚시도구", "detail": "", "alias": "", "cab": "c_생명과학1", "sec": "L", "slot": 2, "col": 1}, {"id": "i94", "name": "공구세트", "detail": "1개", "alias": "드라이버 공구", "cab": "c_공통1", "sec": "U", "slot": 1, "col": 1}, {"id": "i95", "name": "금속판", "detail": "세트 3개·구리판 50개", "alias": "구리판", "cab": "c_공통1", "sec": "U", "slot": 1, "col": 1}, {"id": "i181", "name": "나사 세트", "detail": "23개", "alias": "", "cab": "c_공통1", "sec": "U", "col": 1, "slot": 1}, {"id": "i96", "name": "깔때기", "detail": "11개", "alias": "누두", "cab": "c_공통1", "sec": "U", "slot": 2, "col": 1}, {"id": "i97", "name": "깔때기대", "detail": "7개", "alias": "", "cab": "c_공통1", "sec": "U", "slot": 2, "col": 1}, {"id": "i98", "name": "시험관", "detail": "20mm 15개·18mm 15개·15mm 25개·13mm 25개", "alias": "", "cab": "c_공통1", "sec": "U", "slot": 3, "col": 1}, {"id": "i99", "name": "시험관 집게", "detail": "27개", "alias": "", "cab": "c_공통1", "sec": "U", "slot": 3, "col": 1}, {"id": "i100", "name": "시험관대", "detail": "7개", "alias": "시험관꽂이", "cab": "c_공통1", "sec": "U", "slot": 3, "col": 1}, {"id": "i101", "name": "철제 스탠드 세트", "detail": "7개", "alias": "스텐드 링스탠드", "cab": "c_공통1", "sec": "L", "slot": 1, "col": 1}, {"id": "i102", "name": "뷰렛 클램프(뷰렛 집게)", "detail": "20개", "alias": "뷰렛", "cab": "c_공통1", "sec": "L", "slot": 2, "col": 1}, {"id": "i154", "name": "탈지면", "detail": "450g", "alias": "", "cab": "c_공통1", "sec": "L", "slot": 3, "col": 1}, {"id": "i103", "name": "유리막대", "detail": "20개", "alias": "교반막대", "cab": "c_공통2", "sec": "U", "slot": 1, "col": 1}, {"id": "i104", "name": "핀셋", "detail": "일자형 94개·정밀형 25개·곡선형 6개", "alias": "족집게", "cab": "c_공통2", "sec": "U", "slot": 1, "col": 1}, {"id": "i182", "name": "약숟가락", "detail": "23개", "alias": "", "cab": "c_공통2", "sec": "U", "col": 1, "slot": 1}, {"id": "i105", "name": "스포이트", "detail": "5ml 1,000개·3ml 100개", "alias": "피펫", "cab": "c_공통2", "sec": "U", "slot": 2, "col": 1}, {"id": "i106", "name": "비커", "detail": "1,000ml 1개·500ml 12개·250ml 14개", "alias": "", "cab": "c_공통2", "sec": "U", "slot": 3, "col": 1}, {"id": "i107", "name": "페트리접시", "detail": "450개", "alias": "샬레", "cab": "c_공통2", "sec": "L", "slot": 1, "col": 1}, {"id": "i108", "name": "페트리접시", "detail": "450개", "alias": "샬레", "cab": "c_공통2", "sec": "L", "slot": 2, "col": 1}, {"id": "i109", "name": "페트리접시", "detail": "30개", "alias": "샬레", "cab": "c_공통2", "sec": "L", "slot": 3, "col": 1}, {"id": "i110", "name": "삼각플라스크", "detail": "2,000ml 6개·1,000ml 5개", "alias": "", "cab": "c_공통3", "sec": "U", "slot": 1, "col": 1}, {"id": "i111", "name": "삼각플라스크", "detail": "500ml 15개·250ml 21개", "alias": "", "cab": "c_공통3", "sec": "U", "slot": 2, "col": 1}, {"id": "i112", "name": "삼각플라스크", "detail": "200ml 7개·100ml 33개", "alias": "", "cab": "c_공통3", "sec": "U", "slot": 3, "col": 1}, {"id": "i113", "name": "감압용기", "detail": "9개", "alias": "진공", "cab": "c_공통3", "sec": "L", "slot": 1, "col": 1}, {"id": "i114", "name": "막자", "detail": "4개", "alias": "", "cab": "c_공통3", "sec": "L", "slot": 1, "col": 1}, {"id": "i115", "name": "막자사발", "detail": "7개", "alias": "유발", "cab": "c_공통3", "sec": "L", "slot": 1, "col": 1}, {"id": "i116", "name": "삼발이", "detail": "3개", "alias": "", "cab": "c_공통3", "sec": "L", "slot": 2, "col": 1}, {"id": "i117", "name": "알코올램프", "detail": "3개", "alias": "알코오램프 알콜램프", "cab": "c_공통3", "sec": "L", "slot": 2, "col": 1}, {"id": "i118", "name": "MBL 센서", "detail": "인터페이스·산소·기후·수온 센서 각 6개", "alias": "산소센서 기후센서 수온센서 인터페이스", "cab": "c_공통3", "sec": "L", "slot": 2, "col": 1}, {"id": "i155", "name": "MBL 인터페이스 멀티충전기", "detail": "C타입 6포트 1개", "alias": "", "cab": "c_공통3", "sec": "L", "slot": 2, "col": 1}, {"id": "i119", "name": "실리콘 마개", "detail": "4세트", "alias": "고무마개", "cab": "c_공통3", "sec": "L", "slot": 3, "col": 1}, {"id": "i120", "name": "피펫필러", "detail": "2개", "alias": "", "cab": "c_공통3", "sec": "L", "slot": 3, "col": 1}, {"id": "i122", "name": "원형수조", "detail": "9개", "alias": "수조", "cab": "c_공통4", "sec": "U", "slot": 1, "col": 1}, {"id": "i124", "name": "사각수조", "detail": "7개", "alias": "수조", "cab": "c_공통4", "sec": "U", "slot": 2, "col": 1}, {"id": "i156", "name": "곡선형 수조", "detail": "4개", "alias": "", "cab": "c_공통4", "sec": "U", "slot": 3, "col": 1}, {"id": "i125", "name": "킴테크 장갑", "detail": "9상자", "alias": "니트릴 장갑", "cab": "c_공통4", "sec": "L", "slot": 1, "col": 1}, {"id": "i126", "name": "위생장갑", "detail": "", "alias": "비닐장갑", "cab": "c_공통4", "sec": "L", "slot": 1, "col": 1}, {"id": "i183", "name": "목장갑", "detail": "", "alias": "", "cab": "c_공통4", "sec": "L", "col": 1, "slot": 1}, {"id": "i127", "name": "알루미늄 바가지?", "detail": "", "alias": "알루미늄용기", "cab": "c_공통4", "sec": "L", "slot": 1, "col": 1}, {"id": "i128", "name": "고무관 집게", "detail": "67개", "alias": "핀치콕", "cab": "c_공통4", "sec": "L", "slot": 2, "col": 1}, {"id": "i129", "name": "증발접시", "detail": "12개", "alias": "", "cab": "c_공통5", "sec": "U", "slot": 1, "col": 1}, {"id": "i130", "name": "증발접시 집게", "detail": "16개", "alias": "", "cab": "c_공통5", "sec": "U", "slot": 1, "col": 1}, {"id": "i131", "name": "헤어드라이기", "detail": "7개", "alias": "드라이어", "cab": "c_공통5", "sec": "U", "slot": 1, "col": 1}, {"id": "i132", "name": "적외선등", "detail": "7개", "alias": "", "cab": "c_공통5", "sec": "U", "slot": 2, "col": 1}, {"id": "i133", "name": "전기스탠드", "detail": "7개", "alias": "스텐드 전기스텐드", "cab": "c_공통5", "sec": "U", "slot": 2, "col": 1}, {"id": "i134", "name": "점화기", "detail": "7개", "alias": "라이터", "cab": "c_공통5", "sec": "U", "slot": 2, "col": 1}, {"id": "i135", "name": "핫플레이트(교반기 겸용)", "detail": "4개", "alias": "가열판 교반기", "cab": "c_공통5", "sec": "U", "slot": 3, "col": 1}, {"id": "i136", "name": "전열기", "detail": "3개", "alias": "", "cab": "c_공통5", "sec": "U", "slot": 3, "col": 1}, {"id": "i137", "name": "주사기", "detail": "100ml 7개", "alias": "", "cab": "c_공통6", "sec": "U", "slot": 1, "col": 1}, {"id": "i138", "name": "플라스틱관", "detail": "10개", "alias": "", "cab": "c_공통6", "sec": "U", "slot": 1, "col": 1}, {"id": "i139", "name": "초시계", "detail": "10개", "alias": "스톱워치", "cab": "c_공통6", "sec": "U", "slot": 1, "col": 1}, {"id": "i140", "name": "비접촉식 적외선 온도계", "detail": "8개", "alias": "온도계", "cab": "c_공통6", "sec": "U", "slot": 2, "col": 1}, {"id": "i141", "name": "디지털 온도계", "detail": "25개", "alias": "온도계", "cab": "c_공통6", "sec": "U", "slot": 2, "col": 1}, {"id": "i142", "name": "알코올 온도계", "detail": "7개", "alias": "온도계", "cab": "c_공통6", "sec": "U", "slot": 2, "col": 1}, {"id": "i143", "name": "전자저울", "detail": "7개 (포켓형 26개·휴대용 4개)", "alias": "저울", "cab": "c_공통6", "sec": "U", "slot": 3, "col": 1}, {"id": "i144", "name": "분동세트", "detail": "8개", "alias": "추", "cab": "c_공통6", "sec": "U", "slot": 3, "col": 1}, {"id": "i145", "name": "점적병", "detail": "50ml 10개", "alias": "", "cab": "c_공통6", "sec": "L", "slot": 1, "col": 1}, {"id": "i146", "name": "다용도 홈판", "detail": "6홀 14개·12홀 7개·24홀 7개", "alias": "홈판 웰플레이트", "cab": "c_공통6", "sec": "L", "slot": 1, "col": 1}, {"id": "i147", "name": "가지 달린 둥근바닥플라스크", "detail": "500ml 7개·250ml 9개·100ml 14개", "alias": "플라스크", "cab": "c_공통6", "sec": "L", "slot": 2, "col": 1}, {"id": "i148", "name": "둥근바닥 플라스크", "detail": "500ml 30개", "alias": "플라스크", "cab": "c_공통6", "sec": "L", "slot": 3, "col": 1}, {"id": "i149", "name": "눈금실린더", "detail": "1,000ml 6개·500ml 6개", "alias": "메스실린더", "cab": "c_공통7", "sec": "U", "slot": 1, "col": 1}, {"id": "i150", "name": "눈금실린더", "detail": "250ml 37개", "alias": "메스실린더", "cab": "c_공통7", "sec": "U", "slot": 2, "col": 1}, {"id": "i151", "name": "눈금실린더", "detail": "100ml 31개·50ml 26개·10ml 9개", "alias": "메스실린더", "cab": "c_공통7", "sec": "U", "slot": 3, "col": 1}, {"id": "i152", "name": "부피 플라스크", "detail": "1,000ml·500ml 10개", "alias": "메스플라스크 메스 부피플라스크", "cab": "c_공통7", "sec": "L", "slot": 1, "col": 1}, {"id": "i153", "name": "부피 플라스크", "detail": "200ml 5개·100ml 3개·50ml 5개", "alias": "메스플라스크 메스 부피플라스크", "cab": "c_공통7", "sec": "L", "slot": 2, "col": 1}, {"id": "i184", "name": "도서", "detail": "", "alias": "", "cab": "c_학용품3", "sec": "U", "col": 1, "slot": 1}, {"id": "i185", "name": "보드게임", "detail": "", "alias": "", "cab": "c_학용품3", "sec": "U", "col": 1, "slot": 2}, {"id": "i186", "name": "자(줄자, 각도기, 자)", "detail": "", "alias": "", "cab": "c_학용품3", "sec": "U", "col": 1, "slot": 3}, {"id": "i187", "name": "잡다한 선", "detail": "", "alias": "", "cab": "c_학용품3", "sec": "U", "col": 1, "slot": 3}, {"id": "i188", "name": "투명 아크릴판", "detail": "15개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i189", "name": "검정색 아크릴판", "detail": "4개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i190", "name": "스프레이 접착제", "detail": "5개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i191", "name": "접착제 제거제", "detail": "1개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i192", "name": "방수코팅제", "detail": "1개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i193", "name": "딱풀", "detail": "35개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i194", "name": "박스 테이프(투명)", "detail": "10개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i195", "name": "양면 테이프", "detail": "20개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i196", "name": "돌돌이 테이프 디스팬스", "detail": "1개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i197", "name": "돌돌이 테이프 리필", "detail": "3개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i198", "name": "스카치테이프 디스펜스", "detail": "4개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i199", "name": "스카치태이프", "detail": "10개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i200", "name": "스카치양면테이프", "detail": "2개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i201", "name": "스테인플러", "detail": "4개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 1}, {"id": "i202", "name": "A4 용지", "detail": "", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 2}, {"id": "i203", "name": "4절지 도화지", "detail": "", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 2}, {"id": "i204", "name": "실리콘 디스펜스", "detail": "2개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 2}, {"id": "i205", "name": "글루건", "detail": "6개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 2}, {"id": "i206", "name": "리필심", "detail": "3개(낱개)", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 2}, {"id": "i207", "name": "가위", "detail": "31개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 3}, {"id": "i208", "name": "커터칼", "detail": "6개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 3}, {"id": "i209", "name": "열 컷팅기", "detail": "6개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 3}, {"id": "i210", "name": "열선", "detail": "", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 3}, {"id": "i211", "name": "인두기", "detail": "1개", "alias": "", "cab": "c_학용품2", "sec": "U", "col": 1, "slot": 3}, {"id": "i212", "name": "보드마카", "detail": "", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 1}, {"id": "i213", "name": "릴선", "detail": "", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 1}, {"id": "i214", "name": "붓세트", "detail": "4개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 1}, {"id": "i215", "name": "젓가락", "detail": "", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 1}, {"id": "i216", "name": "건전지", "detail": "3V", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 1}, {"id": "i217", "name": "인덱스 라벨지", "detail": "", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 1}, {"id": "i218", "name": "클립", "detail": "", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 1}, {"id": "i219", "name": "집게", "detail": "", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 1}, {"id": "i220", "name": "트윈 마카 사인펜 세트(40pcs)", "detail": "6개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 2}, {"id": "i221", "name": "트윈 마카 사인펜 세트(80pcs)", "detail": "3개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 2}, {"id": "i222", "name": "네임펜 24색", "detail": "8개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 2}, {"id": "i223", "name": "네임펜 12색", "detail": "3개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 2}, {"id": "i224", "name": "색연필 12색", "detail": "5개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 2}, {"id": "i225", "name": "수성사인펜 24색", "detail": "1개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 2}, {"id": "i226", "name": "형광펜 5색", "detail": "20개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 3}, {"id": "i227", "name": "1공 펀치", "detail": "3개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 3}, {"id": "i228", "name": "2공 펀치", "detail": "4개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 3}, {"id": "i229", "name": "3공 펀치", "detail": "1개", "alias": "", "cab": "c_학용품1", "sec": "U", "col": 1, "slot": 3}, {"id": "i230", "name": "안전관리 서류", "detail": "", "alias": "", "cab": "c_안전", "sec": "U", "col": 1, "slot": 3}, {"id": "i231", "name": "스팀청소기 도구", "detail": "", "alias": "", "cab": "c_안전", "sec": "U", "col": 2, "slot": 3}, {"id": "i232", "name": "보안경", "detail": "", "alias": "", "cab": "c_안전", "sec": "L", "col": 1, "slot": 1}, {"id": "i233", "name": "구급함", "detail": "", "alias": "", "cab": "c_안전", "sec": "L", "col": 1, "slot": 2}, {"id": "i234", "name": "방화사", "detail": "6kg", "alias": "", "cab": "c_안전", "sec": "L", "col": 1, "slot": 3}, {"id": "i235", "name": "소방포", "detail": "2개", "alias": "", "cab": "c_안전", "sec": "L", "col": 1, "slot": 3}, {"id": "i236", "name": "보안경", "detail": "", "alias": "", "cab": "c_안전", "sec": "L", "col": 2, "slot": 1}, {"id": "i237", "name": "내화학장갑", "detail": "", "alias": "", "cab": "c_안전", "sec": "L", "col": 2, "slot": 2}, {"id": "i238", "name": "내화학실험복(교사용)", "detail": "", "alias": "", "cab": "c_안전", "sec": "L", "col": 2, "slot": 3}], "seq": 238, "updated": "2026-10-01"}</script>
+<script id="app-script">(function(){
+"use strict";
+/* =========================================================
+   설정: Google Apps Script 웹 앱 주소를 아래에 붙여 넣으세요.
+   비워 두면 이 파일 안에 들어 있는 저장본(읽기 전용)을 보여 줍니다.
+   ========================================================= */
+const GAS_URL = "";
+
+const EMBED = JSON.parse(document.getElementById("inv-data").textContent);
+let DATA = JSON.parse(JSON.stringify(EMBED));
+let SNAPSHOT = JSON.stringify(DATA);
+const QUICK = ["비커","눈금실린더","전류계","온도계","페트리접시","현미경","폐시약","ㅅㅎㄱ"];
+const state = { q:"", view:{type:"home"}, editing:false, dirty:false, source:"embed", version:null, password:null, loading:false };
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------- 검색 ---------- */
+const CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+const norm = s => String(s||"").toLowerCase().replace(/[\s·,()\-~%]/g,"");
+const chosung = s => Array.from(norm(s)).map(ch => { const c = ch.charCodeAt(0); return (c>=0xAC00&&c<=0xD7A3) ? CHO[Math.floor((c-0xAC00)/588)] : ch; }).join("");
+const isCho = q => q.length>0 && Array.from(q).every(ch => CHO.includes(ch));
+const cabOf = id => DATA.cabinets.find(c => c.id===id);
+const roomOf = id => DATA.rooms.find(r => r.id===id);
+
+function score(item, q){
+  const cab = cabOf(item.cab) || {name:""};
+  if (isCho(q)) {
+    const n = chosung(item.name);
+    if (n.startsWith(q)) return 90;
+    if (n.includes(q)) return 70;
+    if (chosung(item.alias).includes(q)) return 40;
+    if (disposalOf(item) && chosung("폐시약").startsWith(q)) return 30;
+    return 0;
+  }
+  const n = norm(item.name);
+  if (n===q) return 100;
+  if (n.startsWith(q)) return 90;
+  if (n.includes(q)) return 75;
+  if (norm(item.alias).includes(q)) return 55;
+  if (norm(item.detail).includes(q)) return 35;
+  if (norm(cab.name).includes(q)) return 20;
+  if (disposalOf(item) && (q==="폐시약" || q==="폐기" || q===norm(disposalOf(item)) || q===norm(disposalOf(item)+"폐시약"))) return 50;
+  return 0;
+}
+function bigrams(s){ const a=[]; for(let i=0;i<s.length-1;i++) a.push(s.slice(i,i+2)); return a; }
+function similar(q){
+  const qb = bigrams(q); if(!qb.length) return [];
+  return DATA.items.map(it => { const b = bigrams(norm(it.name)); const hit = qb.filter(x => b.includes(x)).length; return {it, s: hit/Math.max(qb.length,1)}; })
+    .filter(x => x.s>=0.34).sort((a,b)=>b.s-a.s).slice(0,6).map(x=>x.it);
+}
+function search(raw){
+  const q = norm(raw);
+  if (!q) return {items:[], cabs:[]};
+  const items = DATA.items.map(it => ({it, s:score(it,q)})).filter(x=>x.s>0)
+    .sort((a,b)=> b.s-a.s || a.it.name.localeCompare(b.it.name,"ko") || order(a.it)-order(b.it)).map(x=>x.it);
+  const cabs = DATA.cabinets.filter(c => norm(c.name).includes(q) || (isCho(q) && chosung(c.name).includes(q)));
+  return {items, cabs};
+}
+const disposalOf = it => (it && it.disposal) ? String(it.disposal) : "";
+const disposalText = it => disposalOf(it) ? `${disposalOf(it)}년 폐시약 처리 예정` : "";
+const disposalTag = it => disposalOf(it) ? `<span class="tag-waste" title="${esc(disposalText(it))}">${esc(disposalOf(it))} 폐시약</span>` : "";
+/* 수납함 모양: upper/lower = 열마다의 칸 수 배열. 예) [3] 한 줄, [2,3] 왼쪽 2칸·오른쪽 3칸, [] 층 없음 */
+const counts = v => Array.isArray(v) ? v.map(n => Math.max(0, Math.round(+n) || 0)) : (+v > 0 ? [Math.round(+v)] : []);
+function shape(cab){ const U = counts(cab.upper), L = counts(cab.lower); return { U, L, cols: Math.max(U.length, L.length, 1), hasLower: L.some(n => n > 0) }; }
+const layer = (cab, sec) => sec === "U" ? shape(cab).U : shape(cab).L;
+const slotCount = (cab, sec, col) => layer(cab, sec)[(col || 1) - 1] || 0;
+function allSlots(cab){ const out = []; ["U","L"].forEach(sec => layer(cab, sec).forEach((n, ci) => { for (let s = 1; s <= n; s++) out.push({sec, col: ci + 1, slot: s}); })); return out; }
+const sameSlot = (a, b) => a.sec === b.sec && (a.col || 1) === (b.col || 1) && a.slot === b.slot;
+const inSlot = (it, cabId, p) => it.cab === cabId && sameSlot(it, p);
+function colName(cols, c){ return cols <= 1 ? "" : cols === 2 ? (c === 1 ? "왼쪽" : "오른쪽") : `${c}번째 열`; }
+function order(it){ const ci = DATA.cabinets.findIndex(c=>c.id===it.cab); return ci*1000 + (it.sec==="U"?0:500) + (it.col||1)*20 + it.slot; }
+function highlight(name, raw){
+  const q = raw.trim(); if(!q || isCho(norm(q))) return esc(name);
+  const i = name.toLowerCase().indexOf(q.toLowerCase());
+  if (i<0) return esc(name);
+  return esc(name.slice(0,i)) + "<mark>" + esc(name.slice(i,i+q.length)) + "</mark>" + esc(name.slice(i+q.length));
+}
+
+/* ---------- 위치 문구 ---------- */
+function slotLabel(cab, sec, slot, col=1){
+  const sh = shape(cab), n = slotCount(cab, sec, col);
+  const head = [sh.hasLower ? (sec==="U" ? "위층" : "아래층") : "", colName(sh.cols, col)].filter(Boolean).join(" ");
+  if (n<=1) return head ? head + (sh.cols>1 ? " 칸" : "") : "전체";
+  const pos = slot===1 ? " (맨 위)" : slot===n ? " (맨 아래)" : " (가운데)";
+  return (head ? head + " " : "") + slot + "번째 칸" + pos;
+}
+const shortSlot = (cab, sec, slot, col) => slotLabel(cab, sec, slot, col).replace(/ \(.*\)/, "");
+function whereText(it){
+  const cab = cabOf(it.cab); if(!cab) return "위치 미지정";
+  return roomOf(cab.room).name + " › " + cab.name + " › " + slotLabel(cab,it.sec,it.slot,it.col);
+}
+
+/* ---------- 수납함 그림 ---------- */
+function cabinetFigure(cab, opt={}){
+  const {hit, me, big, showItems=true} = opt;
+  const sh = shape(cab);
+  const chip = it => {
+    const cls = `it${me===it.id?" me":""}${disposalOf(it)?" waste":""}`;
+    const body = `${esc(it.name)}${it.detail?` <span style="opacity:.7">${esc(it.detail)}</span>`:""}`;
+    return state.editing
+      ? `<button class="${cls}" data-edit="${it.id}" title="${disposalOf(it)?esc(disposalText(it)):"수정"}">${body}</button>`
+      : `<button class="${cls}" data-item="${it.id}" title="${disposalOf(it)?esc(disposalText(it)):""}">${body}</button>`;
+  };
+  const secs = [];
+  for (const sec of ["U","L"]) {
+    const cnt = layer(cab, sec);
+    if (!cnt.some(n => n > 0)) continue;
+    let cols = "";
+    for (let ci = 1; ci <= sh.cols; ci++) {
+      const n = cnt[ci-1] || 0;
+      let slots = "";
+      for (let s=1; s<=n; s++){
+        const p = {sec, col:ci, slot:s};
+        const isHit = hit && sameSlot(hit, p);
+        let inner = "";
+        if (showItems) {
+          const here = DATA.items.filter(it => inSlot(it, cab.id, p));
+          inner = here.map(chip).join("") || `<span class="nothing">비어 있음</span>`;
+          if (state.editing) inner += `<button class="add" data-add="${cab.id}|${sec}|${ci}|${s}">+ 교구 추가</button>`;
+        }
+        const side = isHit && sh.cols > 1 && ci < sh.cols ? " hit-left" : "";
+        slots += `<div class="slot${isHit?" hit":""}${side}" aria-label="${esc(slotLabel(cab,sec,s,ci))}${isHit?", 찾는 교구가 있는 칸":""}"><span class="no" aria-hidden="true">${s}</span>${inner}</div>`;
+      }
+      cols += `<div class="col${n?"":" none"}">${slots}</div>`;
+    }
+    const label = sh.hasLower ? `<div class="sec-label">${sec==="U"?"위층":"아래층"}${sh.cols>1?` <span>· ${colName(sh.cols,1)} / ${colName(sh.cols,sh.cols)}</span>`:""}</div>`
+                              : (sh.cols>1 ? `<div class="sec-label">${colName(sh.cols,1)} / ${colName(sh.cols,sh.cols)}</div>` : "");
+    secs.push(`<div class="sec">${label}<div class="cols">${cols}</div></div>`);
+  }
+  return `<div class="cabwrap${sh.cols>1?" wide":""}"><div class="cab g-${cab.group}${big?" big":""}${sh.cols>1?" multi":""}"><div class="name">${esc(cab.name)}</div>${secs.join("")}</div></div>`;
+}
+
+/* ---------- 배치도 (원본 도면 좌표) ---------- */
+function roomAt(y){ const r = DATA.rooms.find(r => y>=r.y0 && y<r.y1) || DATA.rooms[DATA.rooms.length-1]; return r.id; }
+/* 수납함 이름이 옆 칸과 겹치지 않도록, 위·아래 이름표는 수납함 너비에 맞춰 글자 크기를 줄입니다 */
+function fitFont(c, W){
+  if (c.label === "right") return "";
+  const fit = (c.w / W * 100) / (Array.from(c.name).length * 0.98);
+  return ` style="font-size:max(8px, min(1.22cqw, ${fit.toFixed(3)}cqw))"`;
+}
+function planMap(opt={}){
+  const P = DATA.plan;
+  let y1 = P.y1; DATA.cabinets.forEach(c => { y1 = Math.max(y1, c.y + c.h + 30); });
+  const W = P.x1 - P.x0, H = y1 - P.y0;
+  const X = v => ((v - P.x0) / W * 100).toFixed(3) + "%";
+  const Y = v => ((v - P.y0) / H * 100).toFixed(3) + "%";
+  const SW = v => (v / W * 100).toFixed(3) + "%";
+  const SH = v => (v / H * 100).toFixed(3) + "%";
+  const box = (x,y,w,h) => `left:${X(x)};top:${Y(y)};width:${SW(w)};height:${SH(h)}`;
+  let h = P.walls.map(([x,y,w,hh]) => `<i class="wall" style="${box(x,y,w,hh)}"></i>`).join("");
+  h += DATA.rooms.map(r => `<span class="rlabel" style="left:${X(r.lx)};top:${Y(r.ly)}">${esc(r.name)}</span>`).join("");
+  h += DATA.cabinets.map(c => {
+    const on = opt.cab === c.id;
+    let sh = ""; const shp = shape(c);
+    for (const sec of ["U","L"]) {
+      const cnt = layer(c, sec);
+      if (!cnt.some(n => n > 0)) continue;
+      let cols = "";
+      for (let ci = 1; ci <= shp.cols; ci++) {
+        let slots = "";
+        for (let s=1; s<=(cnt[ci-1]||0); s++) slots += `<i class="${on && opt.hit && sameSlot(opt.hit, {sec, col:ci, slot:s}) ? "on" : ""}"></i>`;
+        cols += `<u>${slots}</u>`;
+      }
+      sh += `<b>${cols}</b>`;
+    }
+    return `<button class="ptile g-${c.group}${on?" on":""}${opt.cab&&!on?" dim":""}" style="${box(c.x,c.y,c.w,c.h)}" data-cab="${c.id}" aria-label="${esc(c.name)} 수납함 보기"><span class="shelves" aria-hidden="true">${sh}</span><span class="plabel lab-${c.label||"bottom"}"${fitFont(c, W)}>${esc(c.name)}</span></button>`;
+  }).join("");
+  const add = state.editing ? `<p style="margin:0 0 8px"><button class="ghost" data-newcab="1">+ 수납함 추가</button></p>` : "";
+  return `${add}<div class="planscroll"><div class="plan" style="aspect-ratio:${W}/${H}">${h}</div></div>`;
+}
+
+/* ---------- 화면 ---------- */
+function renderSide(){
+  const r = search(state.q);
+  const box = $("#results");
+  if (!state.q.trim()) {
+    box.hidden = true; $("#count").textContent = "";
+    $("#quick").hidden = false;
+    return;
+  }
+  $("#quick").hidden = true; box.hidden = false;
+  const cur = state.view.type==="item" ? state.view.id : null;
+  let html = r.cabs.map(c => `<button class="res" data-cab="${c.id}"><span class="sw g-${c.group}" style="background:var(--c)"></span><span><b>${highlight(c.name,state.q)} 수납함</b><small class="where">${esc(roomOf(c.room).name)} · 수납함 전체 보기</small></span></button>`).join("");
+  html += r.items.map(it => { const c = cabOf(it.cab)||{group:"misc"}; return `<button class="res" data-item="${it.id}" aria-current="${cur===it.id}"><span class="sw g-${c.group}" style="background:var(--c)"></span><span><b>${highlight(it.name,state.q)}${disposalTag(it)}</b>${it.detail?`<small>${esc(it.detail)}</small>`:""}<small class="where">${esc(whereText(it))}</small></span></button>`; }).join("");
+  if (!html) {
+    const sim = similar(norm(state.q));
+    html = `<p class="empty">‘${esc(state.q)}’(으)로 등록된 교구가 없어요.${sim.length?" 혹시 이 교구인가요?":" 다른 이름이나 초성(예: ㅂㅋ)으로 찾아보세요."}</p>` +
+      sim.map(it => `<button class="res" data-item="${it.id}"><span class="sw g-${(cabOf(it.cab)||{}).group}" style="background:var(--c)"></span><span><b>${esc(it.name)}</b><small class="where">${esc(whereText(it))}</small></span></button>`).join("");
+    $("#count").textContent = "";
+  } else {
+    $("#count").textContent = `${r.items.length}개 교구${r.cabs.length?` · 수납함 ${r.cabs.length}개`:""}`;
+  }
+  box.innerHTML = html;
+}
+
+function renderMain(){
+  const m = $("#main"); const v = state.view;
+  if (v.type==="item") {
+    const it = DATA.items.find(x => x.id===v.id);
+    if (!it) { state.view = {type:"home"}; return renderMain(); }
+    const cab = cabOf(it.cab);
+    if (!cab) { m.innerHTML = `<div class="card"><h2 style="margin:0 0 8px">${esc(it.name)}</h2><p>이 교구의 수납함 ‘${esc(it.cabName||"")}’을(를) 찾을 수 없어요. 구글 시트의 ‘수납함’ 열 이름이 수납함 시트와 똑같은지 확인해 주세요.</p></div>`; return; }
+    const room = roomOf(cab.room);
+    const hit = {sec:it.sec, col:it.col||1, slot:it.slot};
+    const mates = DATA.items.filter(x => inSlot(x, it.cab, hit) && x.id!==it.id);
+    const others = DATA.items.filter(x => x.id!==it.id && norm(x.name)===norm(it.name));
+    m.innerHTML = `
+      <div class="card found">
+        <div class="fig">${cabinetFigure(cab,{hit, me:it.id, showItems:false})}</div>
+        <div>
+          <p class="roomname">${esc(room.name)}</p>
+          <h2>${esc(cab.name)}</h2>
+          <p class="shelf">${esc(slotLabel(cab,it.sec,it.slot,it.col))}</p>
+          <div class="what"><b>${esc(it.name)}${disposalTag(it)}</b>${it.detail?`<span>${esc(it.detail)}</span>`:""}</div>
+          ${disposalOf(it)?`<p class="wastebar">${esc(disposalOf(it))}년에 폐시약으로 처리할 예정이에요. 수업에 쓰기 전에 담당 선생님께 확인하세요.</p>`:""}
+          <p class="say">${esc(room.name)}의 <strong>${esc(cab.name)}</strong> 수납함을 열고, <strong>${esc(shortSlot(cab,it.sec,it.slot,it.col))}</strong>을 확인하세요.</p>
+          ${mates.length?`<p class="mates">같은 칸에 함께 있어요: ${mates.map(x=>`<button data-item="${x.id}">${esc(x.name)}</button>`).join(", ")}</p>`:""}
+          ${others.length?`<p class="mates">같은 이름의 교구가 다른 칸에도 있어요: ${others.filter(x=>cabOf(x.cab)).map(x=>`<button data-item="${x.id}">${esc(cabOf(x.cab).name)} ${esc(shortSlot(cabOf(x.cab),x.sec,x.slot,x.col))}${x.detail?` (${esc(x.detail)})`:""}</button>`).join(", ")}</p>`:""}
+          <p class="mates"><button data-cab="${cab.id}">${esc(cab.name)} 수납함 전체 보기</button></p>
+          ${state.editing?`<p style="margin-top:14px"><button class="btn" data-edit="${it.id}">이 교구 수정</button></p>`:""}
+        </div>
+      </div>
+      <div class="card"><p class="sectitle">배치도에서 위치</p>${planMap({cab:cab.id, hit})}</div>`;
+  } else if (v.type==="cab") {
+    const cab = cabOf(v.id);
+    if (!cab) { state.view = {type:"home"}; return renderMain(); }
+    const n = DATA.items.filter(x=>x.cab===cab.id).length;
+    m.innerHTML = `
+      <div class="card">
+        <button class="back" data-home="1">← 전체 배치도</button>
+        <div class="cabhead"><h2>${esc(cab.name)}</h2><p>${esc(roomOf(cab.room).name)} · 교구 ${n}종${state.editing?` · <button class="ghost" data-cabset="${cab.id}">수납함 설정</button>`:""}</p></div>
+        ${cabinetFigure(cab,{big:true})}
+        <p class="hint" style="margin-top:10px">${state.editing?"교구 이름을 누르면 수정하거나 다른 칸으로 옮길 수 있어요.":"교구 이름을 누르면 자세한 위치를 볼 수 있어요. 칸 번호는 위에서부터 셉니다."}</p>
+      </div>
+      <div class="card"><p class="sectitle">배치도</p>${planMap({cab:cab.id})}</div>`;
+  } else {
+    const waste = DATA.items.filter(x => disposalOf(x));
+    const years = [...new Set(waste.map(disposalOf))].sort();
+    m.innerHTML = `${waste.length?`<div class="card wastecard"><p class="sectitle">폐시약 처리 예정 ${waste.length}종 (${years.join(", ")}년)</p><p class="hint" style="margin:0 0 10px">아래 수납함 칸에 모여 있어요. 이름을 누르면 위치를 볼 수 있어요.</p>${[...new Set(waste.map(x=>x.cab+"|"+x.sec+"|"+(x.col||1)+"|"+x.slot))].map(k=>{const [ci,sec,col,slot]=k.split("|");const c=cabOf(ci);if(!c)return "";const p={sec,col:+col,slot:+slot};const here=waste.filter(x=>inSlot(x,ci,p));return `<p class="wastegroup"><button data-cab="${c.id}">${esc(roomOf(c.room).name)} › ${esc(c.name)} › ${esc(slotLabel(c,sec,+slot,+col))}</button><span>${here.map(x=>`<button class="it waste" data-item="${x.id}">${esc(x.name)}${x.detail?` <span style="opacity:.7">${esc(x.detail)}</span>`:""}</button>`).join("")}</span></p>`;}).join("")}</div>`:""}<div class="card">${planMap()}</div>
+      <p class="hint">수납함을 누르면 칸마다 어떤 교구가 있는지 볼 수 있어요. 수납함 색은 원래 배치표의 영역 색과 같아요.</p>`;
+  }
+}
+function render(){ renderSide(); renderMain(); document.querySelectorAll(".planscroll").forEach(r => { const t = r.querySelector(".ptile.on"); if (t && r.scrollWidth > r.clientWidth) r.scrollLeft = Math.max(0, t.offsetLeft - r.clientWidth/2 + t.offsetWidth/2); }); $("#saveBtn").disabled = !state.dirty; $("#saveBtn").textContent = state.dirty ? "변경사항 저장" : "저장할 변경 없음"; }
+
+function go(view){ state.view = view; render(); if (window.innerWidth<=820) $("#main").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto":"smooth", block:"start"}); }
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.item) go({type:"item", id:t.dataset.item});
+  else if (t.dataset.cab) go({type:"cab", id:t.dataset.cab});
+  else if (t.dataset.home) go({type:"home"});
+  else if (t.dataset.q) { $("#q").value = t.dataset.q; state.q = t.dataset.q; const r = search(state.q); if (r.items.length) state.view={type:"item",id:r.items[0].id}; render(); }
+  else if (t.dataset.edit) openItemDialog(DATA.items.find(x=>x.id===t.dataset.edit));
+  else if (t.dataset.add) { const [cab,sec,col,slot] = t.dataset.add.split("|"); openItemDialog(null,{cab,sec,col:+col,slot:+slot}); }
+  else if (t.dataset.cabset) openCabDialog(cabOf(t.dataset.cabset));
+  else if (t.dataset.newcab) openCabDialog(null);
+});
+let timer;
+function onInput(){
+  state.q = $("#q").value;
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    const r = search(state.q);
+    if (state.q.trim() && r.items.length===1) state.view = {type:"item", id:r.items[0].id};
+    if (!state.q.trim() && state.view.type==="item") state.view = {type:"home"};
+    render();
+  }, 120);
+}
+function onKey(e){
+  if (e.key==="Enter") { const r = search(state.q); if (r.items.length) go({type:"item", id:r.items[0].id}); else if (r.cabs.length) go({type:"cab", id:r.cabs[0].id}); }
+  if (e.key==="Escape") { $("#q").value=""; onInput(); }
+}
+
+/* ---------- 수정 ---------- */
+function toast(msg){ const d = document.createElement("div"); d.className="toast"; d.setAttribute("role","status"); d.textContent = msg; document.body.appendChild(d); setTimeout(()=>d.remove(), 3500); }
+function markDirty(){ state.dirty = true; render(); }
+function slotOptions(cabId, sec, slot, col=1){
+  const cab = cabOf(cabId); if (!cab) return "";
+  return allSlots(cab).map(p => `<option value="${p.sec}|${p.col}|${p.slot}"${sameSlot(p,{sec,col,slot})?" selected":""}>${esc(slotLabel(cab,p.sec,p.slot,p.col))}</option>`).join("");
+}
+function dialog(html){
+  let d = $("#dlg");
+  if (!d) { d = document.createElement("dialog"); d.id="dlg"; document.body.appendChild(d); }
+  d.innerHTML = html; d.showModal(); return d;
+}
+function openItemDialog(it, at){
+  const cur = it || {name:"", detail:"", alias:"", cab:at.cab, sec:at.sec, col:at.col||1, slot:at.slot};
+  const d = dialog(`<h3>${it?"교구 수정":"교구 추가"}</h3>
+    <label class="field">교구 이름<input id="f-name" value="${esc(cur.name)}" required></label>
+    <label class="field">수량·규격<input id="f-detail" value="${esc(cur.detail)}" placeholder="예: 500ml 12개"></label>
+    <label class="field">다른 이름<input id="f-alias" value="${esc(cur.alias)}" placeholder="예: 메스실린더 (띄어쓰기로 구분)"><small>학생들이 다르게 부르는 이름을 넣으면 그 이름으로도 찾을 수 있어요.</small></label>
+    <label class="field">폐시약 처리 예정<input id="f-waste" value="${esc(cur.disposal||"")}" placeholder="예: 2027 (해당 없으면 비워 두세요)" inputmode="numeric"><small>연도를 넣으면 목록과 엑셀에 ‘폐시약’으로 표시돼요.</small></label>
+    <div class="two">
+      <label class="field">수납함<select id="f-cab">${DATA.cabinets.map(c=>`<option value="${c.id}"${c.id===cur.cab?" selected":""}>${esc(roomOf(c.room).name)} · ${esc(c.name)}</option>`).join("")}</select></label>
+      <label class="field">칸<select id="f-slot">${slotOptions(cur.cab,cur.sec,cur.slot,cur.col||1)}</select></label>
+    </div>
+    <p class="err" id="f-err"></p>
+    <div class="actions">${it?`<button class="btn danger" id="f-del">삭제</button>`:"<span></span>"}<div><button class="btn plain" id="f-cancel">닫기</button><button class="btn" id="f-ok">${it?"수정 적용":"추가"}</button></div></div>`);
+  $("#f-cab",d).onchange = e => { $("#f-slot",d).innerHTML = slotOptions(e.target.value,"U",1,1); };
+  $("#f-cancel",d).onclick = () => d.close();
+  if (it) $("#f-del",d).onclick = () => { DATA.items = DATA.items.filter(x=>x.id!==it.id); d.close(); if (state.view.id===it.id) state.view = {type:"cab", id:it.cab}; markDirty(); toast(`‘${it.name}’을(를) 목록에서 뺐어요. 저장해야 반영돼요.`); };
+  $("#f-ok",d).onclick = () => {
+    const name = $("#f-name",d).value.trim();
+    if (!name) { $("#f-err",d).textContent = "교구 이름을 입력하세요."; return; }
+    const [sec, col, slot] = $("#f-slot",d).value.split("|");
+    if (!sec) { $("#f-err",d).textContent = "이 수납함에는 칸이 없어요. 수납함 설정에서 칸 수를 먼저 정하세요."; return; }
+    const waste = $("#f-waste",d).value.trim();
+    if (waste && !/^\d{4}$/.test(waste)) { $("#f-err",d).textContent = "폐시약 처리 예정은 2027처럼 네 자리 연도로 입력하거나 비워 두세요."; return; }
+    const target = it || {id: "i" + (++DATA.seq)};
+    Object.assign(target, {name, detail:$("#f-detail",d).value.trim(), alias:$("#f-alias",d).value.trim(), cab:$("#f-cab",d).value, sec, col:+col, slot:+slot});
+    if (waste) target.disposal = waste; else delete target.disposal;
+    if (!it) DATA.items.push(target);
+    d.close(); state.view = {type:"item", id:target.id}; markDirty();
+  };
+}
+function openCabDialog(cab){
+  let cur = cab;
+  if (!cab) {
+    const lab = DATA.rooms[DATA.rooms.length-1];
+    const n = DATA.cabinets.filter(c => c.room===lab.id).length;
+    const P = DATA.plan, cw = 103;
+    cur = {name:"", group:"misc", upper:[3], lower:[3], x:P.x0 + 340 + (n % 8) * (cw+6), y:lab.y0 + 40 + Math.floor(n/8) * 170, w:cw, h:126, label:"bottom"};
+  }
+  const shp = shape(cur);
+  const listIn = (id, v, ph) => `<input id="${id}" value="${esc(counts(v).join(","))}" placeholder="${ph}" inputmode="numeric">`;
+  const groups = [["earth","보라 (지구과학)"],["motion","파랑 (운동과 에너지)"],["matter","노랑 (물질)"],["life","초록 (생명과학)"],["common","주황 (공통)"],["safety","분홍 (안전)"],["reagent","회색 (시약)"],["misc","회색 (기타)"]];
+  const sides = [["bottom","아래"],["top","위"],["right","오른쪽"],["inside","안쪽"]];
+  const n4 = (id, v, label) => `<label class="field">${label}<input id="${id}" type="number" step="1" value="${Math.round(v)}"></label>`;
+  const d = dialog(`<h3>${cab?"수납함 설정":"수납함 추가"}</h3>
+    <label class="field">수납함 이름<input id="c-name" value="${esc(cur.name)}"></label>
+    <div class="two">
+      <label class="field">위층 칸 수${listIn("c-up",cur.upper,"예: 3")}<small>열이 둘이면 쉼표로: 3,3</small></label>
+      <label class="field">아래층 칸 수${listIn("c-low",cur.lower,"없으면 비워 두기")}<small>층 구분이 없으면 비워 두세요</small></label>
+    </div>
+    <div class="two">
+      <label class="field">색<select id="c-group">${groups.map(([g,l])=>`<option value="${g}"${g===cur.group?" selected":""}>${l}</option>`).join("")}</select></label>
+      <label class="field">이름표 위치<select id="c-label">${sides.map(([g,l])=>`<option value="${g}"${g===(cur.label||"bottom")?" selected":""}>${l}</option>`).join("")}</select></label>
+    </div>
+    <p class="hint" style="margin:4px 0 6px">배치도 위치 · 숫자가 클수록 오른쪽·아래쪽이에요. 기존 수납함 한 개의 너비는 약 103, 높이는 약 126이에요.</p>
+    <div class="two">${n4("c-x",cur.x,"가로 위치")}${n4("c-y",cur.y,"세로 위치")}</div>
+    <div class="two">${n4("c-w",cur.w,"너비")}${n4("c-h",cur.h,"높이")}</div>
+    <p class="err" id="c-err"></p>
+    <div class="actions">${cab?`<button class="btn danger" id="c-del">수납함 삭제</button>`:"<span></span>"}<div><button class="btn plain" id="c-cancel">닫기</button><button class="btn" id="c-ok">${cab?"적용":"추가"}</button></div></div>`);
+  $("#c-cancel",d).onclick = () => d.close();
+  if (cab) $("#c-del",d).onclick = () => {
+    if (DATA.items.some(x=>x.cab===cab.id)) { $("#c-err",d).textContent = "안에 교구가 있어요. 교구를 먼저 옮기거나 삭제하세요."; return; }
+    DATA.cabinets = DATA.cabinets.filter(c=>c.id!==cab.id); d.close(); state.view={type:"home"}; markDirty();
+  };
+  $("#c-ok",d).onclick = () => {
+    const name = $("#c-name",d).value.trim();
+    const parse = v => String(v).trim() ? String(v).split(/[,\s/]+/).filter(Boolean).map(Number) : [];
+    const up = parse($("#c-up",d).value), low = parse($("#c-low",d).value);
+    if (![...up, ...low].every(n => Number.isInteger(n) && n >= 0 && n <= 8)) { $("#c-err",d).textContent = "칸 수는 0~8 사이 숫자로, 열이 여럿이면 쉼표로 나눠 입력하세요(예: 3,3)."; return; }
+    if (up.length > 4 || low.length > 4) { $("#c-err",d).textContent = "열은 4개까지 만들 수 있어요."; return; }
+    const g = id => Number($(id,d).value);
+    const x = g("#c-x"), y = g("#c-y"), w = g("#c-w"), h = g("#c-h");
+    if (!name) { $("#c-err",d).textContent = "수납함 이름을 입력하세요."; return; }
+    if (![...up, ...low].some(n => n > 0)) { $("#c-err",d).textContent = "칸이 최소 1개는 있어야 해요."; return; }
+    const P = DATA.plan;
+    if (![x,y,w,h].every(Number.isFinite) || w<10 || h<10 || x<P.x0 || x+w>P.x1 || y<P.y0) { $("#c-err",d).textContent = `위치는 가로 ${P.x0}~${P.x1}, 세로 ${P.y0} 이상, 너비·높이는 10 이상으로 입력하세요.`; return; }
+    if (cab) {
+      const stranded = DATA.items.filter(it => it.cab===cab.id && it.slot > ((it.sec==="U"?up:low)[(it.col||1)-1]||0));
+      if (stranded.length) { $("#c-err",d).textContent = `없어지는 칸에 교구가 있어요: ${stranded.slice(0,3).map(it=>it.name).join(", ")}${stranded.length>3?" 외":""}. 먼저 옮겨 주세요.`; return; }
+    }
+    const target = cab || {id:"c" + Date.now().toString(36)};
+    Object.assign(target, {name, upper:up, lower:low, group:$("#c-group",d).value, label:$("#c-label",d).value, x, y, w, h, room:roomAt(y + h/2)});
+    if (!cab) DATA.cabinets.push(target);
+    d.close(); state.view = {type:"cab", id:target.id}; markDirty();
+  };
+}
+/* ---------- 구글 시트(GAS) 연동 ----------
+   시트 '수납함' 열: 수납함 | 실 | 분류 | 위층 칸 수 | 아래층 칸 수 | 가로 위치 | 세로 위치 | 너비 | 높이 | 이름표 위치 | ID
+   시트 '교구' 열:   교구명 | 수량·규격 | 수납함 | 층 | 열 | 칸 | 다른 이름 | 폐시약 처리 연도 | ID
+   칸 수는 열마다 쉼표로: "3" 또는 "2,3"(왼쪽 2칸, 오른쪽 3칸). 층 구분이 없으면 아래층 칸 수를 비워 둡니다. */
+const GROUPS = [["earth","지구과학"],["motion","운동과에너지"],["matter","물질"],["life","생명과학"],["common","공통"],["safety","안전"],["reagent","시약"],["misc","기타"]];
+const listOf = v => String(v ?? "").split(/[,\s/]+/).filter(Boolean).map(x => Math.max(0, Math.min(8, Math.round(+x) || 0)));
+function colOf(v, cols){ const t = str(v); let c = t==="왼쪽" ? 1 : t==="오른쪽" ? cols : t==="가운데" ? Math.ceil(cols/2) : parseInt(t, 10) || 1; return Math.max(1, Math.min(cols, c)); }
+const LABELS = [["bottom","아래"],["top","위"],["right","오른쪽"],["inside","안쪽"]];
+const toKo = (pairs, v, dflt) => (pairs.find(p => p[0]===v) || [null, dflt])[1];
+const fromKo = (pairs, v, dflt) => { const t = String(v??"").trim(); const p = pairs.find(p => p[1]===t || p[0]===t); return p ? p[0] : dflt; };
+const num = (v, d) => { const n = Number(String(v??"").replace(/,/g,"").trim()); return Number.isFinite(n) && String(v??"").trim()!=="" ? n : d; };
+const str = v => String(v ?? "").trim();
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+
+function fromSheet(payload){
+  const cabRows = (payload["수납함"] || []).filter(r => str(r["수납함"]));
+  const used = new Set();
+  const uid = (want, prefix) => { let id = str(want); if (!id || used.has(id)) { let k = used.size + 1; do { id = prefix + (k++); } while (used.has(id)); } used.add(id); return id; };
+  const cabinets = cabRows.map(r => {
+    const c = {
+      id: uid(r["ID"], "c"), name: str(r["수납함"]),
+      group: fromKo(GROUPS, r["분류"], "misc"),
+      upper: str(r["위층 칸 수"]) === "" ? [3] : listOf(r["위층 칸 수"]), lower: listOf(r["아래층 칸 수"]),
+      x: num(r["가로 위치"], 256), y: num(r["세로 위치"], 920), w: num(r["너비"], 62.8), h: num(r["높이"], 150),
+      label: fromKo(LABELS, r["이름표 위치"], "bottom"),
+    };
+    const room = EMBED.rooms.find(rm => rm.name === str(r["실"]));
+    c.room = room ? room.id : roomAt(c.y + c.h/2);
+    if (![...c.upper, ...c.lower].some(n => n > 0)) c.upper = [1];
+    return c;
+  });
+  const byName = {}; cabinets.forEach(c => { byName[c.name] = c; });
+  let maxI = 0;
+  (payload["교구"] || []).forEach(r => { const m = /^i(\d+)$/.exec(str(r["ID"])); if (m) maxI = Math.max(maxI, +m[1]); });
+  const itemIds = new Set();
+  const items = (payload["교구"] || []).filter(r => str(r["교구명"])).map(r => {
+    let id = str(r["ID"]); if (!id || itemIds.has(id)) id = "i" + (++maxI); itemIds.add(id);
+    const cabName = str(r["수납함"]); const cab = byName[cabName];
+    const layerName = str(r["층"]);
+    let sec = layerName === "아래층" ? "L" : "U";
+    const col = cab ? colOf(r["열"], shape(cab).cols) : 1;
+    if (cab && !slotCount(cab, sec, col)) sec = sec === "U" ? "L" : "U";
+    const max = cab ? (slotCount(cab, sec, col) || 1) : 9;
+    const it = { id, name: str(r["교구명"]), detail: str(r["수량·규격"]), alias: str(r["다른 이름"]),
+      cab: cab ? cab.id : "", cabName, sec, col, slot: Math.max(1, Math.min(max, Math.round(num(r["칸"], 1)))) };
+    const w = str(r["폐시약 처리 연도"]).replace(/[^0-9]/g, "");
+    if (w) it.disposal = w;
+    return it;
+  });
+  return { rooms: EMBED.rooms, plan: EMBED.plan, cabinets, items, seq: maxI, updated: str(payload.updated).slice(0,10) || today() };
+}
+function sortedItems(){
+  const ord = {}; DATA.cabinets.forEach((c,i) => ord[c.id] = i);
+  return DATA.items.slice().sort((a,b) => ((ord[a.cab] ?? 999) - (ord[b.cab] ?? 999)) || (a.sec===b.sec?0:(a.sec==="U"?-1:1)) || ((a.col||1)-(b.col||1)) || (a.slot-b.slot) || a.name.localeCompare(b.name,"ko"));
+}
+function toSheet(){
+  const cabinets = DATA.cabinets.map(c => ({
+    "수납함": c.name, "실": roomOf(c.room).name, "분류": toKo(GROUPS, c.group, "기타"),
+    "위층 칸 수": counts(c.upper).join(","), "아래층 칸 수": counts(c.lower).join(","),
+    "가로 위치": Math.round(c.x*10)/10, "세로 위치": Math.round(c.y*10)/10, "너비": Math.round(c.w*10)/10, "높이": Math.round(c.h*10)/10,
+    "이름표 위치": toKo(LABELS, c.label, "아래"), "ID": c.id }));
+  const items = sortedItems().map(it => { const c = cabOf(it.cab);
+    return { "교구명": it.name, "수량·규격": it.detail || "", "수납함": c ? c.name : (it.cabName || ""),
+      "층": c && !shape(c).hasLower ? "-" : (it.sec==="L" ? "아래층" : "위층"),
+      "열": c && shape(c).cols > 1 ? colName(shape(c).cols, it.col||1) : "-", "칸": it.slot,
+      "다른 이름": it.alias || "", "폐시약 처리 연도": it.disposal || "", "ID": it.id }; });
+  return { "수납함": cabinets, "교구": items };
+}
+async function gas(body){
+  const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(body) }); // text/plain → CORS 사전 요청 없음
+  if (!res.ok) throw { code: "network" };
+  const out = await res.json();
+  if (!out.ok) throw { code: out.code || "error", message: out.message };
+  return out;
+}
+function setStatus(msg, kind){
+  const b = $("#status"); if (!b) return;
+  b.hidden = !msg; b.textContent = msg || ""; b.className = "status" + (kind ? " " + kind : "");
+}
+function applyData(next, source, version){
+  DATA = next; SNAPSHOT = JSON.stringify(DATA); state.source = source; state.version = version || null; state.dirty = false;
+  if (state.view.type==="item" && !DATA.items.some(x => x.id===state.view.id)) state.view = {type:"home"};
+  if (state.view.type==="cab" && !cabOf(state.view.id)) state.view = {type:"home"};
+  $("#updated").textContent = `교구 ${DATA.items.length}종 · 수납함 ${DATA.cabinets.length}개 · ${DATA.updated} 기준`;
+  render();
+}
+async function loadRemote(quiet){
+  if (!GAS_URL) { setStatus("구글 시트와 아직 연결되지 않았어요. 파일에 들어 있는 저장본을 보여 주고 있어요(수정 불가).", "warn"); return; }
+  state.loading = true;
+  if (!quiet) setStatus("구글 시트에서 최신 교구 정보를 불러오는 중…");
+  try {
+    const res = await fetch(GAS_URL + (GAS_URL.includes("?") ? "&" : "?") + "action=get&t=" + Date.now());
+    if (!res.ok) throw { code: "network" };
+    const out = await res.json();
+    if (!out.ok) throw { code: out.code || "error", message: out.message };
+    if (state.editing && state.dirty) { state.loading = false; return; }
+    applyData(fromSheet(out), "sheet", out.version);
+    try { localStorage.setItem("inv-cache", JSON.stringify(out)); } catch(_){}
+    setStatus("");
+  } catch (err) {
+    const msg = (err && err.code === "no_sheet") ? "구글 시트에 ‘교구’·‘수납함’ 시트가 없어요. 시트 메뉴의 ‘교구 앱 › 처음 설정하기’를 먼저 실행하세요."
+      : "구글 시트에 연결하지 못했어요. " + (state.source === "cache" ? "마지막으로 불러온 내용" : "파일에 들어 있는 저장본") + "을 보여 주고 있어요.";
+    setStatus(msg, "warn");
+  } finally { state.loading = false; }
+}
+
+/* ---------- 수정 모드 ---------- */
+function askPassword(){
+  return new Promise(resolve => {
+    const d = dialog(`<h3>수정 비밀번호</h3>
+      <p class="hint" style="margin:0 0 10px">교구 정보는 선생님만 수정할 수 있어요. 구글 시트에서 정한 수정 비밀번호를 입력하세요.</p>
+      <label class="field">비밀번호<input id="pw" type="password" autocomplete="current-password"></label>
+      <p class="err" id="pw-err"></p>
+      <div class="actions"><span></span><div><button class="btn plain" id="pw-cancel">닫기</button><button class="btn" id="pw-ok">확인</button></div></div>`);
+    const done = v => { d.close(); resolve(v); };
+    $("#pw-cancel",d).onclick = () => done(null);
+    d.addEventListener("cancel", () => resolve(null), { once:true });
+    const ok = async () => {
+      const pw = $("#pw",d).value; if (!pw) { $("#pw-err",d).textContent = "비밀번호를 입력하세요."; return; }
+      $("#pw-ok",d).disabled = true; $("#pw-err",d).textContent = "확인 중…";
+      try { await gas({ action:"check", password: pw }); done(pw); }
+      catch (err) { $("#pw-ok",d).disabled = false; $("#pw-err",d).textContent = err && err.code==="unauthorized" ? "비밀번호가 맞지 않아요." : err && err.code==="no_password" ? "아직 수정 비밀번호가 정해지지 않았어요. 구글 시트 메뉴 ‘교구 앱 › 수정 비밀번호 정하기’를 먼저 실행하세요." : "구글 시트에 연결하지 못했어요. 잠시 후 다시 시도하세요."; }
+    };
+    $("#pw-ok",d).onclick = ok;
+    $("#pw",d).addEventListener("keydown", e => { if (e.key==="Enter") ok(); });
+    setTimeout(() => $("#pw",d).focus(), 30);
+  });
+}
+async function setEditing(on){
+  if (on) {
+    if (!GAS_URL || state.source === "embed" || state.source === "cache") { toast(GAS_URL ? "구글 시트에서 최신 정보를 불러온 뒤에 수정할 수 있어요." : "구글 시트와 연결해야 수정할 수 있어요. 안내서의 설정 방법을 확인하세요."); return; }
+    if (!state.password) { let pw = null; try { pw = sessionStorage.getItem("inv-pw"); } catch(_){}
+      if (!pw) pw = await askPassword();
+      if (!pw) return;
+      state.password = pw; try { sessionStorage.setItem("inv-pw", pw); } catch(_){} }
+  }
+  if (!on && state.dirty && !confirm("저장하지 않은 변경사항이 있어요. 버리고 수정을 마칠까요?")) return;
+  if (!on && state.dirty) { DATA = JSON.parse(SNAPSHOT); state.dirty = false; }
+  state.editing = on; document.body.classList.toggle("editing", on);
+  $("#editToggle").textContent = on ? "수정 마치기" : "교구 정보 수정";
+  render();
+}
+async function save(){
+  if (!state.dirty) return;
+  const btn = $("#saveBtn"); btn.disabled = true; btn.textContent = "저장 중…";
+  try {
+    const out = await gas({ action:"save", password: state.password, baseVersion: state.version, data: toSheet() });
+    DATA.updated = str(out.updated).slice(0,10) || today();
+    state.version = out.version; SNAPSHOT = JSON.stringify(DATA); state.dirty = false;
+    $("#updated").textContent = `교구 ${DATA.items.length}종 · 수납함 ${DATA.cabinets.length}개 · ${DATA.updated} 기준`;
+    toast("구글 시트에 저장했어요.");
+    try { localStorage.removeItem("inv-cache"); } catch(_){}
+  } catch (err) {
+    const code = err && err.code;
+    if (code === "conflict") {
+      toast("그사이 다른 선생님이나 구글 시트에서 내용이 바뀌었어요. 최신 내용을 다시 불러옵니다. 방금 수정한 내용은 다시 입력해 주세요.");
+      state.dirty = false; await loadRemote();
+    } else if (code === "unauthorized") {
+      state.password = null; try { sessionStorage.removeItem("inv-pw"); } catch(_){}
+      toast("수정 비밀번호가 바뀌었어요. ‘수정 마치기’ 후 다시 들어와 주세요.");
+    } else toast("저장하지 못했어요. 인터넷 연결을 확인하고 다시 시도하세요.");
+  } finally { render(); }
+}
+
+/* ---------- 엑셀 내려받기 ---------- */
+const SHEETJS = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((ok, no) => { const s = document.createElement("script"); s.src = SHEETJS;
+    s.onload = () => window.XLSX ? ok(window.XLSX) : no(new Error("load")); s.onerror = () => no(new Error("load")); document.head.appendChild(s); });
+}
+function sheetRows(){
+  const sorted = sortedItems();
+  const list = [["번호","실","수납함","층","열","칸","위치 표기","교구명","수량·규격","폐시약 처리","다른 이름(검색어)"]];
+  sorted.forEach((it,i) => { const c = cabOf(it.cab);
+    list.push([i+1, c?roomOf(c.room).name:"", c?c.name:(it.cabName||""), !c||!shape(c).hasLower?"-":(it.sec==="U"?"위층":"아래층"), c&&shape(c).cols>1?colName(shape(c).cols,it.col||1):"-", it.slot, whereText(it), it.name, it.detail||"", it.disposal?`${it.disposal}년 예정`:"", it.alias||""]); });
+  const per = [["실","수납함","칸","교구 수","교구 목록"]];
+  DATA.cabinets.forEach(c => { allSlots(c).forEach(p => {
+    { const here = sorted.filter(it => inSlot(it, c.id, p));
+      per.push([roomOf(c.room).name, c.name, slotLabel(c,p.sec,p.slot,p.col), here.length, here.map(it => it.name + (it.detail?` (${it.detail})`:"") + (it.disposal?` [${it.disposal} 폐시약]`:"")).join(", ") || "(비어 있음)"]); } }); });
+  const sum = [["실","수납함","위층 칸 수","아래층 칸 수","교구 종류 수"]];
+  DATA.cabinets.forEach(c => sum.push([roomOf(c.room).name, c.name, counts(c.upper).join(",")||"-", counts(c.lower).join(",")||"-", DATA.items.filter(it => it.cab===c.id).length]));
+  const waste = [["처리 예정 연도","교구명","수량·규격","위치","처리 완료"]];
+  sorted.filter(it => it.disposal).sort((a,b) => a.disposal.localeCompare(b.disposal)).forEach(it => waste.push([it.disposal, it.name, it.detail||"", whereText(it), ""]));
+  return {list, per, sum, waste};
+}
+async function exportXlsx(){
+  const btn = $("#xlsxBtn"); const old = btn.textContent; btn.disabled = true; btn.textContent = "엑셀 만드는 중…";
+  try {
+    const X = await loadXLSX(); const {list, per, sum, waste} = sheetRows(); const wb = X.utils.book_new();
+    const mk = (rows, widths) => { const ws = X.utils.aoa_to_sheet(rows); ws["!cols"] = widths.map(w => ({wch:w})); ws["!autofilter"] = {ref: ws["!ref"]}; return ws; };
+    X.utils.book_append_sheet(wb, mk(list,[6,12,14,8,8,6,44,30,30,14,26]), "교구 목록");
+    X.utils.book_append_sheet(wb, mk(per,[12,14,20,9,90]), "수납함별 칸");
+    X.utils.book_append_sheet(wb, mk(sum,[12,16,12,14,14]), "수납함 요약");
+    if (waste.length > 1) X.utils.book_append_sheet(wb, mk(waste,[14,28,18,44,12]), "폐시약 목록");
+    X.writeFile(wb, `과학실_교구목록_${DATA.updated}.xlsx`);
+  } catch (_) { toast("엑셀 파일을 만들지 못했어요. 인터넷 연결을 확인하고 다시 시도하세요."); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+
+/* ---------- 시작 ---------- */
+function init(){
+  $("#q").addEventListener("input", onInput);
+  $("#q").addEventListener("keydown", onKey);
+  $("#clearQ").onclick = () => { $("#q").value=""; onInput(); $("#q").focus(); };
+  $("#quick").innerHTML = QUICK.map(q => `<button class="chip" data-q="${q}">${q}</button>`).join("");
+  $("#editToggle").onclick = () => setEditing(!state.editing);
+  $("#xlsxBtn").onclick = exportXlsx;
+  $("#saveBtn").onclick = save;
+  $("#cancelBtn").onclick = () => setEditing(false);
+  window.addEventListener("beforeunload", e => { if (state.dirty) { e.preventDefault(); e.returnValue = ""; } });
+  let cached = null; try { cached = JSON.parse(localStorage.getItem("inv-cache") || "null"); } catch(_){}
+  if (GAS_URL && cached && cached.ok) { try { applyData(fromSheet(cached), "cache", null); } catch(_) { applyData(DATA, "embed"); } }
+  else applyData(DATA, "embed");
+  loadRemote(!!(GAS_URL && cached));
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !state.editing && !state.loading && GAS_URL) loadRemote(true); });
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+</script>
+</body>
+</html>
